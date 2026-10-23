@@ -44,8 +44,16 @@
     ],
   };
 
+  // Preserve the source-oriented presets while making 100% read as a complete look.
   const makePreset = (preset) => ({
     ...preset,
+    impact:
+      preset.impact ??
+      (preset.params?.mono > 0.5
+        ? 1.06
+        : preset.basis === "民间取向"
+          ? 1.9
+          : 1.7),
     params: {
       ...BASE_PARAMS,
       ...preset.params,
@@ -1295,7 +1303,7 @@
   const MAX_EXPORT_PIXELS = 72_000_000;
   const DEFAULT_PRESET = PRESETS[0].id;
   const PRESET_MAP = new Map(PRESETS.map((preset) => [preset.id, preset]));
-  const SETTINGS_KEY = "silverhalide-lab-settings-v1";
+  const SETTINGS_KEY = "silverhalide-lab-settings-v2";
 
   const state = {
     items: [],
@@ -1304,7 +1312,7 @@
     brandFilter: "all",
     strength: 1,
     grain: 1,
-    split: 48,
+    split: 68,
     size: "4096",
     format: "jpeg",
     quality: 94,
@@ -1339,6 +1347,7 @@
     uniform vec2 uTexel;
     uniform vec2 uSize;
     uniform float uIntensity;
+    uniform float uStyleGain;
     uniform float uContrast;
     uniform float uSaturation;
     uniform float uExposure;
@@ -1477,8 +1486,9 @@
         color += glow * (uHalation * 0.075) * vec3(1.0, 0.58, 0.3);
       }
 
-      color = clamp(color, 0.0, 1.0);
-      color = mix(source, color, clamp(uIntensity, 0.0, 1.0));
+      vec3 styled = clamp(color, 0.0, 1.0);
+      float styleAmount = clamp(uIntensity, 0.0, 1.6) * uStyleGain;
+      color = clamp(source + (styled - source) * styleAmount, 0.0, 1.0);
 
       vec2 point = (vUv - 0.5) * 2.0;
       point *= uSize / max(uSize.x, uSize.y);
@@ -1564,6 +1574,7 @@
         "uTexel",
         "uSize",
         "uIntensity",
+        "uStyleGain",
         "uContrast",
         "uSaturation",
         "uExposure",
@@ -1640,6 +1651,7 @@
       gl.uniform2f(uniform.uTexel, 1 / width, 1 / height);
       gl.uniform2f(uniform.uSize, width, height);
       gl.uniform1f(uniform.uIntensity, settings.strength);
+      gl.uniform1f(uniform.uStyleGain, preset.impact);
       gl.uniform1f(uniform.uContrast, params.contrast);
       gl.uniform1f(uniform.uSaturation, params.saturation);
       gl.uniform1f(uniform.uExposure, params.exposure);
@@ -1688,7 +1700,7 @@
       ctx.globalAlpha = 1;
       ctx.filter = "none";
       ctx.drawImage(source, 0, 0, width, height);
-      ctx.globalAlpha = settings.strength;
+      ctx.globalAlpha = clamp(settings.strength * preset.impact, 0, 1);
       ctx.filter = filter;
       ctx.drawImage(source, 0, 0, width, height);
       ctx.restore();
@@ -1826,7 +1838,7 @@
   function restoreSettings() {
     try {
       const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
-      if (typeof saved.strength === "number") state.strength = clamp(saved.strength, 0, 1);
+      if (typeof saved.strength === "number") state.strength = clamp(saved.strength, 0, 1.6);
       if (typeof saved.grain === "number") state.grain = clamp(saved.grain, 0, 1.5);
       if (["4096", "6000", "2560", "original"].includes(saved.size)) state.size = saved.size;
       if (["jpeg", "png"].includes(saved.format)) state.format = saved.format;
@@ -1974,7 +1986,7 @@
         event.preventDefault();
         moveSelection(1);
       } else if (event.key.toLowerCase() === "b" && state.activeId) {
-        setSplit(state.split > 5 ? 0 : 48);
+        setSplit(state.split > 5 ? 0 : 68);
       }
     });
 

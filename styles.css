@@ -908,7 +908,7 @@ button:disabled {
 .after-canvas {
   position: absolute;
   inset: 0;
-  clip-path: inset(0 calc(100% - var(--split, 48%)) 0 0);
+  clip-path: inset(0 calc(100% - var(--split, 68%)) 0 0);
 }
 
 .preview-label {
@@ -939,7 +939,7 @@ button:disabled {
   z-index: 5;
   top: 0;
   bottom: 0;
-  left: var(--split, 48%);
+  left: var(--split, 68%);
   width: 1px;
   pointer-events: none;
   background: rgba(255, 250, 237, 0.84);
