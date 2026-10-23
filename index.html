@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="银盐调色台：在本地为一批照片快速套用哈苏、徕卡、理光、富士、大疆哈苏、小米徕卡、OPPO哈苏与专业软件影调。"
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="银盐调色台 · 34 种相机气质" />
+    <meta
+      property="og:description"
+      content="一批照片，一次套上哈苏、徕卡、理光、富士、大疆哈苏与联名手机影调。照片只在浏览器本地处理。"
+    />
+    <meta property="og:image" content="og-cover.jpg" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="银盐调色台 · 34 种相机气质" />
+    <meta
+      name="twitter:description"
+      content="一批照片，一次套上哈苏、徕卡、理光、富士、大疆哈苏与联名手机影调。照片只在浏览器本地处理。"
+    />
+    <meta name="twitter:image" content="og-cover.jpg" />
+    <meta name="theme-color" content="#e9e4d8" />
+    <title>银盐调色台 · 胶片气质实验室</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c1c19'/%3E%3Crect x='8' y='16' width='48' height='34' rx='5' fill='%23e9e4d8'/%3E%3Cpath d='M17 16v34M23 16v5M29 16v5M35 16v5M41 16v5M47 16v34' stroke='%231c1c19' stroke-width='3'/%3E%3Ccircle cx='32' cy='33' r='10' fill='%23c16b36'/%3E%3Ccircle cx='32' cy='33' r='5' fill='%231c1c19'/%3E%3C/svg%3E" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="page-grain" aria-hidden="true"></div>
+
+    <div class="app-shell">
+      <header class="topbar">
+        <a class="brand" href="#" aria-label="银盐调色台首页">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 44 44" role="img">
+              <rect x="3.5" y="9" width="37" height="27" rx="4" fill="none" stroke="currentColor" />
+              <path d="M11 9v27M16 9v4M21 9v4M26 9v4M31 9v4M36 9v27" fill="none" stroke="currentColor" />
+              <circle cx="23.5" cy="23" r="7.3" fill="none" stroke="currentColor" />
+              <circle cx="23.5" cy="23" r="2.7" fill="currentColor" />
+            </svg>
+          </span>
+          <span class="brand-copy">
+            <span class="brand-name">银盐 <i>LAB</i></span>
+            <span class="brand-subtitle">胶片气质调色台</span>
+          </span>
+        </a>
+
+        <div class="privacy-pill">
+          <span class="privacy-dot"></span>
+          全本地处理 · 原片不上传
+        </div>
+
+        <div class="top-actions">
+          <button class="button button-quiet" id="addPhotosTop" type="button">
+            <span aria-hidden="true">＋</span> 添加照片
+          </button>
+          <button class="button button-ink" id="exportTop" type="button">
+            导出成片
+          </button>
+        </div>
+      </header>
+
+      <main class="workspace">
+        <aside class="library-panel" aria-labelledby="libraryTitle">
+          <div class="panel-intro reveal reveal-1">
+            <p class="eyebrow">LOOK LIBRARY / 01</p>
+            <div class="intro-line">
+              <h1 id="libraryTitle">味道，<br />来自光。</h1>
+              <span class="look-total" id="lookTotal">34</span>
+            </div>
+            <p class="panel-desc">相机、无人机、联名手机与专业软件，换一套看世界的方式。</p>
+          </div>
+
+          <div class="brand-tabs reveal reveal-2" id="brandTabs" role="tablist" aria-label="相机风格分类">
+            <button class="brand-tab active" data-brand="all" type="button" role="tab" aria-selected="true">全部</button>
+            <button class="brand-tab" data-brand="hasselblad" type="button" role="tab" aria-selected="false">哈苏</button>
+            <button class="brand-tab" data-brand="leica" type="button" role="tab" aria-selected="false">徕卡</button>
+            <button class="brand-tab" data-brand="ricoh" type="button" role="tab" aria-selected="false">理光</button>
+            <button class="brand-tab" data-brand="fujifilm" type="button" role="tab" aria-selected="false">富士</button>
+            <button class="brand-tab" data-brand="dji" type="button" role="tab" aria-selected="false">大疆</button>
+            <button class="brand-tab" data-brand="xiaomi" type="button" role="tab" aria-selected="false">小米</button>
+            <button class="brand-tab" data-brand="oppo" type="button" role="tab" aria-selected="false">OPPO</button>
+            <button class="brand-tab" data-brand="software" type="button" role="tab" aria-selected="false">软件</button>
+          </div>
+
+          <div class="preset-grid reveal reveal-3" id="presetGrid" role="list" aria-label="调色风格"></div>
+
+          <div class="library-foot reveal reveal-4">
+            <span class="library-foot-mark">※</span>
+            <p>
+              依据公开官方描述、联名工作流与民间经典取向独立调色，并非品牌官方 LUT 或认证。
+              <a class="basis-link" href="about.html" target="_blank" rel="noreferrer">查看调色依据 ↗</a>
+            </p>
+          </div>
+        </aside>
+
+        <section class="studio" aria-label="调色预览工作区">
+          <div class="stage-card reveal reveal-2" id="dropZone">
+            <div class="stage-head">
+              <div class="stage-title">
+                <span class="eyebrow">DARKROOM / 02</span>
+                <div class="filename-row">
+                  <strong id="currentFilename">等待照片</strong>
+                  <span class="file-dimension" id="currentDimension">JPG · PNG · WebP</span>
+                </div>
+              </div>
+              <div class="stage-tools">
+                <button class="icon-button" id="prevPhoto" type="button" aria-label="上一张照片" disabled>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.5 5-7 7 7 7" /></svg>
+                </button>
+                <span class="photo-counter" id="photoCounter">00 / 00</span>
+                <button class="icon-button" id="nextPhoto" type="button" aria-label="下一张照片" disabled>
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9.5 5 7 7-7 7" /></svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="stage" id="stage">
+              <div class="empty-state" id="emptyState">
+                <div class="empty-visual" aria-hidden="true">
+                  <span class="empty-frame frame-back"></span>
+                  <span class="empty-frame frame-mid"></span>
+                  <span class="empty-frame frame-front">
+                    <span class="empty-lens"></span>
+                    <span class="empty-light"></span>
+                  </span>
+                </div>
+                <p class="eyebrow">DROP YOUR MOMENTS HERE</p>
+                <h2>把照片放进暗房</h2>
+                <p class="empty-copy">一次选多张。先挑气质，再一键套到整条片卷。</p>
+                <button class="button button-accent button-large" id="emptyAdd" type="button">
+                  选择照片 <span aria-hidden="true">↗</span>
+                </button>
+                <div class="format-note">
+                  <span>本地读取</span>
+                  <span>批量处理</span>
+                  <span>不损原片</span>
+                </div>
+              </div>
+
+              <div class="preview-wrap" id="previewWrap" hidden>
+                <canvas id="beforeCanvas" aria-label="原片预览"></canvas>
+                <canvas class="after-canvas" id="afterCanvas" aria-label="调色后预览"></canvas>
+                <div class="preview-label preview-label-before" id="previewLookLabel">调色后</div>
+                <div class="preview-label preview-label-after">原片</div>
+                <div class="split-line" id="splitLine" aria-hidden="true">
+                  <span class="split-handle">
+                    <svg viewBox="0 0 32 32" aria-hidden="true">
+                      <path d="m12 10-5 6 5 6M20 10l5 6-5 6" />
+                    </svg>
+                  </span>
+                </div>
+                <input
+                  class="split-range"
+                  id="splitRange"
+                  type="range"
+                  min="0"
+                  max="100"
+                  value="48"
+                  aria-label="拖动查看调色前后对比"
+                />
+                <span class="corner-label corner-label-left">AFTER</span>
+                <span class="corner-label corner-label-right">BEFORE</span>
+              </div>
+
+              <div class="drop-cue" id="dropCue">
+                <span class="drop-cue-icon">＋</span>
+                <strong>松手，开始冲印</strong>
+                <small>支持一次拖入多张照片</small>
+              </div>
+
+              <div class="stage-stamp" aria-hidden="true">
+                <span>LOCAL</span>
+                <span>ONLY</span>
+                <i>NO. 24</i>
+              </div>
+            </div>
+
+            <div class="stage-foot">
+              <div class="active-look-readout">
+                <span class="readout-seal" id="readoutSeal">H</span>
+                <div>
+                  <span class="readout-kicker" id="readoutBrand">哈苏 · HASSELBLAD</span>
+                  <strong id="readoutName">HNCS 自然</strong>
+                </div>
+              </div>
+              <div class="stage-hint">
+                <span class="hint-line"></span>
+                拖动中线看原片 · 方向键切换照片
+              </div>
+            </div>
+          </div>
+
+          <section class="filmstrip-card reveal reveal-3" aria-labelledby="filmstripTitle">
+            <div class="filmstrip-head">
+              <div>
+                <span class="eyebrow">CONTACT SHEET / 03</span>
+                <h2 id="filmstripTitle">片卷 <span id="filmstripCount">00</span></h2>
+              </div>
+              <button class="text-button" id="filmstripAdd" type="button">
+                <span aria-hidden="true">＋</span> 继续添加
+              </button>
+            </div>
+            <div class="filmstrip" id="filmstrip">
+              <button class="filmstrip-empty" id="filmstripEmpty" type="button">
+                <span class="filmstrip-sprocket" aria-hidden="true"></span>
+                <span>这里会排好你的整条片卷</span>
+                <strong>先放几张照片进来</strong>
+              </button>
+            </div>
+          </section>
+        </section>
+
+        <aside class="controls-panel" aria-labelledby="controlsTitle">
+          <div class="controls-intro reveal reveal-2">
+            <p class="eyebrow">DEVELOP / 04</p>
+            <div class="controls-heading-row">
+              <h2 id="controlsTitle">冲印控制</h2>
+              <span class="control-count" id="controlCount">0 张</span>
+            </div>
+          </div>
+
+          <section class="current-look-card reveal reveal-3" aria-label="当前风格">
+            <div class="look-swatch" id="lookSwatch" aria-hidden="true">
+              <span>H</span>
+            </div>
+            <div class="look-card-copy">
+              <span id="lookCardBrand">哈苏 · HASSELBLAD</span>
+              <strong id="lookCardName">HNCS 自然</strong>
+              <small id="lookCardTagline">奶油高光 · 克制色彩</small>
+            </div>
+            <span class="look-card-index" id="lookCardIndex">01</span>
+          </section>
+
+          <section class="look-basis-card reveal reveal-3" aria-label="调色依据">
+            <div class="look-basis-head">
+              <span class="look-basis-label">调色依据 / LOOK BASIS</span>
+              <span class="look-basis-badge is-official" id="lookBasisBadge">官方取向</span>
+            </div>
+            <strong id="lookSourceName">Hasselblad Natural Colour Solution</strong>
+            <p id="lookNotes">按官方强调的自然色、平滑层次与肤色连续性做独立近似。</p>
+          </section>
+
+          <section class="slider-section reveal reveal-3" aria-label="全局调色参数">
+            <div class="slider-row">
+              <label for="strengthSlider">
+                <span>风格强度</span>
+                <small>保留多少原片</small>
+              </label>
+              <output id="strengthValue" for="strengthSlider">100%</output>
+            </div>
+            <input class="range-control" id="strengthSlider" type="range" min="0" max="100" value="100" />
+
+            <div class="slider-row slider-row-gap">
+              <label for="grainSlider">
+                <span>颗粒感</span>
+                <small>模拟银盐的呼吸</small>
+              </label>
+              <output id="grainValue" for="grainSlider">标准</output>
+            </div>
+            <input class="range-control" id="grainSlider" type="range" min="0" max="150" value="100" />
+          </section>
+
+          <button class="button button-sync reveal reveal-3" id="applyAll" type="button" disabled>
+            <span>
+              <i aria-hidden="true">↻</i>
+              把当前风格套到全部
+            </span>
+            <em id="applyAllCount">0</em>
+          </button>
+
+          <section class="four-look-card reveal reveal-4">
+            <div class="four-look-head">
+              <span class="mini-seal">×4</span>
+              <div>
+                <span class="eyebrow">SIGNATURE SET</span>
+                <h3>一张照片，四种气质</h3>
+              </div>
+            </div>
+            <p>一条片卷同时冲出哈苏、徕卡、理光、富士四个版本。</p>
+            <div class="four-brands" aria-hidden="true">
+              <span class="brand-chip chip-h">H</span>
+              <span class="brand-chip chip-l">L</span>
+              <span class="brand-chip chip-r">R</span>
+              <span class="brand-chip chip-f">F</span>
+              <i></i>
+              <span id="fourLookCount">0 张照片 → 0 个版本</span>
+            </div>
+            <button class="button button-outline" id="fourLookExport" type="button" disabled>
+              四风格批量导出 <span aria-hidden="true">↗</span>
+            </button>
+          </section>
+
+          <section class="export-card reveal reveal-4" aria-labelledby="exportTitle">
+            <div class="export-heading">
+              <div>
+                <span class="eyebrow">OUTPUT / 05</span>
+                <h2 id="exportTitle">出片</h2>
+              </div>
+              <span class="output-estimate" id="outputEstimate">尚未选片</span>
+            </div>
+
+            <div class="select-row">
+              <label for="sizeSelect">尺寸</label>
+              <select id="sizeSelect">
+                <option value="4096">长边 4096px · 推荐</option>
+                <option value="6000">长边 6000px · 精细</option>
+                <option value="2560">长边 2560px · 轻量</option>
+                <option value="original">保持原始尺寸</option>
+              </select>
+            </div>
+
+            <div class="select-row">
+              <label for="formatSelect">格式</label>
+              <select id="formatSelect">
+                <option value="jpeg">JPG · 体积小</option>
+                <option value="png">PNG · 无损</option>
+              </select>
+            </div>
+
+            <div class="quality-row" id="qualityRow">
+              <label for="qualitySlider">JPG 画质 <output id="qualityValue">94</output></label>
+              <input class="range-control range-control-dark" id="qualitySlider" type="range" min="70" max="100" value="94" />
+            </div>
+
+            <button class="button button-export" id="exportAll" type="button" disabled>
+              <span>导出整条片卷</span>
+              <span class="export-button-count" id="exportButtonCount">0 张</span>
+            </button>
+            <button class="text-button export-one" id="exportOne" type="button" disabled>
+              只导出当前这一张
+            </button>
+            <div class="download-ready" id="downloadReady" hidden>
+              <div>
+                <strong id="downloadReadyTitle">冲印完成</strong>
+                <span id="downloadReadyDetail">文件已准备好</span>
+              </div>
+              <button class="button button-accent" id="downloadAgain" type="button">保存 ZIP</button>
+            </div>
+          </section>
+        </aside>
+      </main>
+    </div>
+
+    <input id="fileInput" type="file" accept="image/*" multiple hidden />
+
+    <div class="toast-stack" id="toastStack" aria-live="polite" aria-atomic="true"></div>
+
+    <div class="processing-layer" id="processingLayer" hidden>
+      <div class="processing-card" role="status" aria-live="polite">
+        <div class="processing-reel" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span><span></span>
+          <i></i>
+        </div>
+        <p class="eyebrow">DEVELOPING</p>
+        <h2 id="processingTitle">正在冲印</h2>
+        <p id="processingDetail">照片还在显影，请稍等片刻。</p>
+        <div class="progress-track"><span id="progressBar"></span></div>
+        <div class="progress-meta">
+          <span id="progressPercent">0%</span>
+          <button class="text-button" id="cancelExport" type="button">取消</button>
+        </div>
+      </div>
+    </div>
+
+    <noscript>
+      <div class="noscript">这个调色台需要启用 JavaScript。</div>
+    </noscript>
+
+    <script src="heic2any.min.js" defer></script>
+    <script src="app.js" defer></script>
+  </body>
+</html>

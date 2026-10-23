@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="银盐调色台的 34 个风格依据、官方资料来源、DJI HNCS 与 D-Log LUT 边界说明。"
+    />
+    <meta name="theme-color" content="#e9e4d8" />
+    <title>调色依据 · 银盐调色台</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c1c19'/%3E%3Crect x='8' y='16' width='48' height='34' rx='5' fill='%23e9e4d8'/%3E%3Cpath d='M17 16v34M23 16v5M29 16v5M35 16v5M41 16v5M47 16v34' stroke='%231c1c19' stroke-width='3'/%3E%3Ccircle cx='32' cy='33' r='10' fill='%23c16b36'/%3E%3Ccircle cx='32' cy='33' r='5' fill='%231c1c19'/%3E%3C/svg%3E" />
+    <link rel="apple-touch-icon" href="icon-192.png" />
+    <link rel="manifest" href="site.webmanifest" />
+    <link rel="stylesheet" href="about.css" />
+  </head>
+  <body>
+    <div class="paper-grain" aria-hidden="true"></div>
+    <header class="about-header">
+      <a class="back-link" href="index.html">← 返回调色台</a>
+      <span class="about-mark">SILVER HALIDE LAB / NOTES</span>
+    </header>
+
+    <main>
+      <section class="hero">
+        <p class="eyebrow">LOOK BASIS / 34</p>
+        <h1>不是复制一个 LUT，<br />是拆解一种看世界的方式。</h1>
+        <p class="hero-copy">
+          银盐调色台的 34 个风格，来自公开可查的官方描述、联名影像工作流、专业软件公开风格分类，以及摄影社区长期形成的审美共识。所有参数均为独立编写与拟合。
+        </p>
+        <div class="hero-stats" aria-label="调色台概况">
+          <span><strong>34</strong> 个风格</span>
+          <span><strong>9</strong> 类气质</span>
+          <span><strong>0</strong> 张照片上传</span>
+        </div>
+      </section>
+
+      <section class="notice" aria-label="重要边界">
+        <strong>先说明边界</strong>
+        <p>
+          这些风格不是品牌官方 LUT、相机配置文件、传感器仿真或联名授权。页面中的“官方取向”只表示方向参考了可查证的官方产品说明；“民间取向”来自社区共同审美与实拍印象。
+        </p>
+      </section>
+
+      <section class="section section-dji" aria-labelledby="dji-title">
+        <div class="section-heading">
+          <span class="section-index">01</span>
+          <div>
+            <p class="eyebrow">DJI × HASSELBLAD</p>
+            <h2 id="dji-title">大疆的官方哈苏</h2>
+          </div>
+        </div>
+        <div class="dji-grid">
+          <article class="feature-card">
+            <span class="badge is-official">官方取向</span>
+            <h3>HNCS 自然</h3>
+            <p>
+              DJI Mavic 3 Pro 官方页面写明：其 4/3 CMOS 哈苏相机支持 12-bit RAW，并采用 Hasselblad Natural Colour Solution（HNCS），“准确还原人眼所见，直出即大片”。
+            </p>
+            <p>
+              页面按普通照片可用的方式，重写自然色、平滑层次和低后期依赖的方向；不接入 DJI 相机原始处理链。
+            </p>
+          </article>
+          <article class="feature-card">
+            <span class="badge is-community">民间取向</span>
+            <h3>航拍风光</h3>
+            <p>
+              以官方 HNCS 自然色为底，再参考航拍社区常见的通透天空、清晰远景与不闷阴影。它是本项目独立命名的风格，不是 DJI 官方同名模式。
+            </p>
+          </article>
+        </div>
+        <div class="technical-note">
+          <h3>为什么不做“D-Log 照片滤镜”？</h3>
+          <p>
+            DJI 官方下载页提供 Mavic 3 的 D-Log / D-Log M to Rec.709 LUT，它们是给对应的对数视频素材使用的。把视频 LUT 直接套到普通 JPG 上，并不能得到相同结果，所以本站不把两者混为一谈。
+          </p>
+        </div>
+        <div class="source-row" aria-label="大疆与哈苏来源">
+          <a href="https://www.dji.com/cn/mavic-3-pro" target="_blank" rel="noreferrer">DJI Mavic 3 Pro ↗</a>
+          <a href="https://www.dji.com/cn/mavic-3-pro/specs" target="_blank" rel="noreferrer">技术参数 ↗</a>
+          <a href="https://www.dji.com/cn/mavic-3-pro/downloads" target="_blank" rel="noreferrer">官方 LUT 下载页 ↗</a>
+          <a href="https://www.hasselblad.com/learn/hasselblad-natural-colour-solution/" target="_blank" rel="noreferrer">Hasselblad HNCS ↗</a>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="camera-title">
+        <div class="section-heading">
+          <span class="section-index">02</span>
+          <div>
+            <p class="eyebrow">CAMERA & FILM</p>
+            <h2 id="camera-title">相机与胶片</h2>
+          </div>
+        </div>
+        <div class="basis-list">
+          <article>
+            <div class="basis-title"><h3>哈苏</h3><span>3 款</span></div>
+            <p>HNCS 自然、中画幅肤色参考 HNCS 的真实色彩、平滑层次和肤色连续性；暖光编辑属于民间杂志暖调取向。</p>
+            <div class="source-row">
+              <a href="https://www.hasselblad.com/learn/hasselblad-natural-colour-solution/" target="_blank" rel="noreferrer">HNCS ↗</a>
+              <a href="https://www.hasselblad.com/phocus/" target="_blank" rel="noreferrer">Phocus ↗</a>
+            </div>
+          </article>
+          <article>
+            <div class="basis-title"><h3>徕卡</h3><span>5 款</span></div>
+            <p>M11 自然依据官方对细层次、自然观感和低噪暗部的描述；经典德味、M9 CCD、夜神来自社区长期印象，Monochrom 依据官方黑白机型定位。</p>
+            <div class="source-row">
+              <a href="https://leica-camera.com/en-int/photography/cameras/m/m11-black" target="_blank" rel="noreferrer">Leica M11 ↗</a>
+              <a href="https://leica-camera.com/en-int/photography/cameras/m/m11-monochrom" target="_blank" rel="noreferrer">M11 Monochrom ↗</a>
+            </div>
+          </article>
+          <article>
+            <div class="basis-title"><h3>理光</h3><span>5 款</span></div>
+            <p>正片、负片、高反差黑白、怀旧、漂白，对应 Ricoh GR III Image Control 的公开模式与常见实拍观感。</p>
+            <div class="source-row">
+              <a href="https://www.ricoh-imaging.co.jp/english/products/gr-3/spec/" target="_blank" rel="noreferrer">GR III 规格 ↗</a>
+            </div>
+          </article>
+          <article>
+            <div class="basis-title"><h3>富士</h3><span>9 款</span></div>
+            <p>PROVIA、VELVIA、ASTIA、Classic Chrome、Classic Neg.、PRO Neg. Hi、Nostalgic Neg.、ACROS、ETERNA，依据富士官方相机说明书对色彩、反差、肤色和电影感的说明。</p>
+            <div class="source-row">
+              <a href="https://fujifilm-dsc.com/en/manual/x100vi/menu_shooting/image_quality_setting/index.html" target="_blank" rel="noreferrer">X100VI 说明书 ↗</a>
+              <a href="https://fujifilm-dsc.com/en/manual/x-t5/menu_shooting/image_quality_setting/index.html" target="_blank" rel="noreferrer">X-T5 说明书 ↗</a>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section" aria-labelledby="phone-title">
+        <div class="section-heading">
+          <span class="section-index">03</span>
+          <div>
+            <p class="eyebrow">CO-ENGINEERED CAMERA PHONES</p>
+            <h2 id="phone-title">联名手机与专业软件</h2>
+          </div>
+        </div>
+        <div class="basis-list two-column">
+          <article>
+            <div class="basis-title"><h3>小米 × 徕卡</h3><span>4 款</span></div>
+            <p>徕卡经典、徕卡生动对应官方 Leica Authentic / Vibrant 方向；一瞬街拍是独立命名；大师人像参考官方人像与影调引擎描述。</p>
+            <div class="source-row">
+              <a href="https://www.mi.com/global/product/xiaomi-15-ultra/" target="_blank" rel="noreferrer">Xiaomi 15 Ultra ↗</a>
+            </div>
+          </article>
+          <article>
+            <div class="basis-title"><h3>OPPO × 哈苏</h3><span>3 款</span></div>
+            <p>哈苏自然、哈苏大师、大师人像，参考官方对自然色彩、经典哈苏影调、全焦段大师人像与人像肤色引擎的公开描述。</p>
+            <div class="source-row">
+              <a href="https://www.oppo.com/cn/smartphones/series-find-x/find-x8-ultra/" target="_blank" rel="noreferrer">Find X8 Ultra ↗</a>
+            </div>
+          </article>
+          <article>
+            <div class="basis-title"><h3>Capture One</h3><span>2 款</span></div>
+            <p>Nordic Edit 与 Latitude，依据 Capture One 官方 Styles 页面公开的北欧编辑感、丰富色彩、深沉影调和高反差方向重新编写。</p>
+            <div class="source-row">
+              <a href="https://www.captureone.com/en/products/styles" target="_blank" rel="noreferrer">Capture One Styles ↗</a>
+            </div>
+          </article>
+          <article>
+            <div class="basis-title"><h3>Phocus HNCS</h3><span>1 款</span></div>
+            <p>对哈苏官方 Phocus / HNCS 的自然色、平滑层次、肤色连续性和高光渐变做编辑型近似，不包含官方软件色彩数据。</p>
+            <div class="source-row">
+              <a href="https://www.hasselblad.com/phocus/" target="_blank" rel="noreferrer">Phocus ↗</a>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section boundary" aria-labelledby="boundary-title">
+        <div class="section-heading">
+          <span class="section-index">04</span>
+          <div>
+            <p class="eyebrow">BOUNDARIES</p>
+            <h2 id="boundary-title">共同边界</h2>
+          </div>
+        </div>
+        <ul>
+          <li>所有照片只在访问者自己的浏览器内读取和处理，不上传服务器。</li>
+          <li>不使用或分发品牌专有 LUT、相机配置文件、Capture One Style 文件或手机内部参数。</li>
+          <li>不把 D-Log / D-Log M 等视频 LUT 应用到普通照片。</li>
+          <li>同一风格在 JPG、HEIC 与不同色彩空间的源图上可能出现细微差异。</li>
+          <li>“官方取向”不代表官方认可、赞助、认证或一一对应的成片结果。</li>
+        </ul>
+      </section>
+    </main>
+
+    <footer class="about-footer">
+      <span>银盐 LAB · LOCAL ONLY</span>
+      <a href="index.html">开始调色 →</a>
+    </footer>
+  </body>
+</html>

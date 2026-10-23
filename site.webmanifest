@@ -1,0 +1,25 @@
+{
+  "name": "银盐调色台",
+  "short_name": "银盐 LAB",
+  "description": "在浏览器本地为一批照片快速套用 34 种相机与胶片气质。",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#e9e4d8",
+  "theme_color": "#e9e4d8",
+  "lang": "zh-CN",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
