@@ -372,6 +372,8 @@ button:disabled {
   min-height: 0;
   flex: 1;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: max-content;
+  align-content: start;
   gap: 8px;
   overflow-x: hidden;
   overflow-y: auto;
@@ -399,7 +401,7 @@ button:disabled {
 .preset-card {
   position: relative;
   display: flex;
-  min-height: 82px;
+  min-height: 103px;
   min-width: 0;
   flex: 0 0 auto;
   flex-direction: column;
@@ -484,34 +486,36 @@ button:disabled {
 .preset-copy {
   display: flex;
   min-width: 0;
+  flex: 0 0 auto;
   flex-direction: column;
-  gap: 3px;
-  padding: 8px 9px 9px;
+  gap: 4px;
+  padding: 8px 9px 10px;
 }
 
 .preset-meta {
   display: flex;
+  min-height: 16px;
   min-width: 0;
   align-items: center;
   justify-content: space-between;
-  gap: 5px;
+  gap: 6px;
 }
 
 .preset-brand {
   overflow: hidden;
   color: var(--muted);
-  font-size: 7px;
+  font-size: 8px;
   font-weight: 700;
-  letter-spacing: 0.13em;
+  letter-spacing: 0.09em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .preset-basis {
   flex: 0 0 auto;
-  padding: 2px 4px;
+  padding: 3px 5px;
   border-radius: 999px;
-  font-size: 5.5px;
+  font-size: 7px;
   font-weight: 800;
   letter-spacing: 0.04em;
   line-height: 1;
@@ -532,9 +536,11 @@ button:disabled {
 .preset-name {
   overflow: hidden;
   font-family: var(--serif);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 650;
   letter-spacing: -0.02em;
+  line-height: 1.3;
+  padding-bottom: 1px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1153,8 +1159,11 @@ button:disabled {
 }
 
 .filmstrip-card {
+  display: flex;
   height: 165px;
   flex: 0 0 165px;
+  flex-direction: column;
+  gap: 8px;
   padding: 13px 16px 11px;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -1165,10 +1174,11 @@ button:disabled {
 
 .filmstrip-head {
   display: flex;
+  flex: 0 0 auto;
   align-items: flex-end;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 8px;
+  margin-bottom: 0;
 }
 
 .filmstrip-head .eyebrow {
@@ -1212,11 +1222,13 @@ button:disabled {
 
 .filmstrip {
   display: flex;
-  height: 100%;
+  height: auto;
+  min-height: 0;
+  flex: 1;
   gap: 9px;
   overflow-x: auto;
   overflow-y: hidden;
-  padding: 0 1px 6px;
+  padding: 0 1px 4px;
   scroll-snap-type: x proximity;
 }
 
@@ -1256,7 +1268,7 @@ button:disabled {
   display: flex;
   width: 86px;
   min-width: 86px;
-  height: 105px;
+  height: 90px;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid transparent;
@@ -1283,8 +1295,8 @@ button:disabled {
 
 .film-thumb-wrap {
   position: relative;
-  height: 68px;
-  flex: 0 0 68px;
+  height: 62px;
+  flex: 0 0 62px;
   overflow: hidden;
   background: #272822;
 }
@@ -2378,8 +2390,8 @@ button:disabled {
   }
 
   .filmstrip-card {
-    height: 158px;
-    flex-basis: 158px;
+    height: 165px;
+    flex-basis: 165px;
   }
 
   .preset-grid {

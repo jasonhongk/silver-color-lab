@@ -2274,6 +2274,7 @@
       card.style.setProperty("--swatch", preset.swatch);
       card.setAttribute("role", "listitem");
       card.setAttribute("aria-label", `${brand.name} ${preset.name}，${preset.basis}`);
+      card.title = `${brand.name} · ${brand.en} / ${preset.name} / ${preset.basis}`;
 
       const swatch = document.createElement("span");
       swatch.className = "preset-swatch";
@@ -2286,7 +2287,7 @@
       copy.className = "preset-copy";
       copy.innerHTML = `
         <span class="preset-meta">
-          <span class="preset-brand">${brand.name} · ${brand.en}</span>
+          <span class="preset-brand">${brand.name}</span>
           <span class="preset-basis ${preset.basis === "官方取向" ? "is-official" : "is-community"}">${preset.basis}</span>
         </span>
         <span class="preset-name">${preset.name}</span>
