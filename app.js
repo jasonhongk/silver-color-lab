@@ -1297,6 +1297,9 @@
     "fujifilm-classic-neg",
   ];
 
+  const RECOMMENDED_LOOK = { strength: 1, grain: 1 };
+  const GUIDE_SEEN_KEY = "silverhalide-guide-seen-v1";
+
   const MAX_FILES = 40;
   const PREVIEW_EDGE = 1600;
   const THUMB_EDGE = 380;
@@ -1786,6 +1789,8 @@
       "strengthValue",
       "grainSlider",
       "grainValue",
+      "recommendNote",
+      "recommendReset",
       "applyAll",
       "applyAllCount",
       "fourLookCount",
@@ -1811,6 +1816,7 @@
       "progressBar",
       "progressPercent",
       "cancelExport",
+      "guideReplay",
     ];
 
     for (const id of ids) {
@@ -1833,6 +1839,7 @@
     setupDragAndDrop();
     syncControls();
     updateInterface();
+    requestAnimationFrame(() => prepareGuide());
   }
 
   function restoreSettings() {
@@ -1902,6 +1909,7 @@
     dom.strengthSlider.addEventListener("input", (event) => {
       state.strength = Number(event.target.value) / 100;
       dom.strengthValue.textContent = `${event.target.value}%`;
+      syncRecommendation();
       paintRange(dom.strengthSlider);
       renderPreview();
     });
@@ -1914,6 +1922,7 @@
     dom.grainSlider.addEventListener("input", (event) => {
       state.grain = Number(event.target.value) / 100;
       dom.grainValue.textContent = grainLabel(event.target.value);
+      syncRecommendation();
       paintRange(dom.grainSlider);
       renderPreview();
     });
@@ -1923,7 +1932,25 @@
       refreshAllThumbnails();
     });
 
+    dom.recommendReset.addEventListener("click", () => {
+      const atRecommended =
+        Math.abs(state.strength - RECOMMENDED_LOOK.strength) < 0.005 &&
+        Math.abs(state.grain - RECOMMENDED_LOOK.grain) < 0.005;
+      if (atRecommended) {
+        showToast("你现在用的就是推荐值：强度 100%，颗粒 100%。");
+        return;
+      }
+      state.strength = RECOMMENDED_LOOK.strength;
+      state.grain = RECOMMENDED_LOOK.grain;
+      syncControls();
+      renderPreview();
+      refreshAllThumbnails();
+      persistSettings();
+      showToast("已回到推荐值：强度 100%，颗粒 100%。", "good");
+    });
+
     dom.applyAll.addEventListener("click", applyCurrentLookToAll);
+    dom.guideReplay.addEventListener("click", announceGuide);
     dom.fourLookExport.addEventListener("click", () => runExport("four"));
     dom.exportAll.addEventListener("click", () => runExport("all"));
     dom.exportOne.addEventListener("click", () => runExport("one"));
@@ -1991,7 +2018,10 @@
     });
 
     window.addEventListener("resize", () => {
-      requestAnimationFrame(fitPreviewFrame);
+      requestAnimationFrame(() => {
+        fitPreviewFrame();
+        placeGuide();
+      });
     });
 
     window.addEventListener("beforeunload", () => {
@@ -2639,6 +2669,7 @@
     dom.strengthValue.textContent = `${Math.round(state.strength * 100)}%`;
     dom.grainSlider.value = String(Math.round(state.grain * 100));
     dom.grainValue.textContent = grainLabel(Math.round(state.grain * 100));
+    syncRecommendation();
     dom.qualitySlider.value = String(state.quality);
     dom.qualityValue.textContent = String(state.quality);
     dom.sizeSelect.value = state.size;
@@ -2648,6 +2679,18 @@
     paintRange(dom.grainSlider);
     paintRange(dom.qualitySlider);
     setSplit(state.split);
+  }
+
+  function syncRecommendation() {
+    const recommended =
+      Math.abs(state.strength - RECOMMENDED_LOOK.strength) < 0.005 &&
+      Math.abs(state.grain - RECOMMENDED_LOOK.grain) < 0.005;
+    dom.recommendNote.textContent = recommended
+      ? "推荐值：强度 100%，品牌味已完整；颗粒 100%，细腻可见。大多数照片用它就好。"
+      : "已微调。强度一般 100–115% 足够；颗粒 80–115% 最自然，太高会像加了噪点。";
+    dom.recommendReset.textContent = recommended ? "已在推荐值" : "回到推荐值";
+    dom.recommendReset.disabled = recommended;
+    dom.recommendReset.classList.toggle("is-recommended", recommended);
   }
 
   function paintRange(input) {
@@ -2808,6 +2851,239 @@
         "good",
       );
     }
+  }
+
+  // A one-time walkthrough anchored to the real controls. No permanent layout is added.
+  const GUIDE_STEPS = [
+    {
+      target: () => dom.stage,
+      title: "照片先进暗房",
+      body: "把照片拖进来，或点「选择照片」。一次可以选多张；处理全程只在这台设备上，原片不会被改动。",
+      next: "选好照片",
+    },
+    {
+      target: () => dom.presetGrid,
+      title: "向下点一张气质",
+      body: "在左侧按哈苏、徕卡、理光、富士筛选，再点一张。它会立刻套到当前照片，下面片卷里的缩略图也会同步更新。",
+      next: "知道了",
+    },
+    {
+      target: () => [dom.strengthSlider, dom.grainSlider],
+      title: "先用推荐值",
+      body: "强度 100% / 颗粒 100% 是设计好的标准，不需要每次重新调。想更浓可以加到 115% 左右；颗粒一般不超过 115%。",
+      next: "知道了",
+    },
+    {
+      target: () => dom.applyAll,
+      title: "满意了，再套到全部",
+      body: "点「把当前风格套到全部」把当前风格同步到整条片卷，右侧小数字就是张数。只改单张时，直接点下方片卷切换即可。",
+      next: "知道了",
+    },
+    {
+      target: () => dom.fourLookExport.closest(".four-look-card") || dom.fourLookExport,
+      title: "两种出片，说清楚再选",
+      body: "「四风格批量导出」：每张照片同时冲出哈苏、徕卡、理光、富士共 4 版；再往下的深色「出片」区，则按每张当前选的风格打包。",
+      next: "开始用",
+    },
+  ];
+
+  const guide = {
+    root: null,
+    marker: null,
+    popover: null,
+    step: 0,
+    active: false,
+    welcome: null,
+  };
+
+  function prepareGuide() {
+    buildGuideLayer();
+    document.body.classList.add("guide-ready");
+    let seen = false;
+    try {
+      seen = localStorage.getItem(GUIDE_SEEN_KEY) === "1";
+    } catch {
+      seen = false;
+    }
+    if (!seen) {
+      openWelcome();
+    }
+  }
+
+  function buildGuideLayer() {
+    const root = document.createElement("div");
+    root.className = "guide-layer";
+    root.hidden = true;
+
+    const marker = document.createElement("div");
+    marker.className = "ui-guide-marker";
+
+    const popover = document.createElement("div");
+    popover.className = "ui-guide-popover";
+    popover.setAttribute("role", "dialog");
+    popover.setAttribute("aria-live", "polite");
+    popover.innerHTML = `
+      <header>
+        <span class="ui-guide-index"></span>
+        <button class="ui-guide-skip" type="button">跳过引导</button>
+      </header>
+      <h3></h3>
+      <p></p>
+      <footer>
+        <span class="ui-guide-dots" aria-hidden="true"></span>
+        <button class="ui-guide-next" type="button">下一步</button>
+      </footer>
+    `;
+    popover.querySelector(".ui-guide-skip").addEventListener("click", finishGuide);
+    popover.querySelector(".ui-guide-next").addEventListener("click", () => nextGuideStep());
+    root.append(marker, popover);
+    document.body.append(root);
+    guide.root = root;
+    guide.marker = marker;
+    guide.popover = popover;
+  }
+
+  function openWelcome() {
+    const backdrop = document.createElement("div");
+    backdrop.className = "guide-welcome-backdrop";
+    backdrop.innerHTML = `
+      <section class="guide-welcome" role="dialog" aria-modal="true" aria-labelledby="guideWelcomeTitle">
+        <span class="eyebrow">FIRST LOOK / 第一次用</span>
+        <h2 id="guideWelcomeTitle">三步，给照片<br />换一套光。</h2>
+        <p>不用学软件，只要选照片、点气质、导出。颜色只在这台设备上处理。</p>
+        <ol>
+          <li><b>1</b><div><strong>选照片</strong><span>一次多选也没关系，缩略图会在下方排成片卷。</span></div></li>
+          <li><b>2</b><div><strong>挑气质</strong><span>点左侧任意一张，当前照片立刻换色，随时可改。</span></div></li>
+          <li><b>3</b><div><strong>再用推荐值</strong><span>强度、颗粒都用 100%；「套到全部」后才整卷导出。</span></div></li>
+        </ol>
+        <div class="guide-welcome-actions">
+          <button class="button button-ink" id="guideStart" type="button">看一遍页面指引</button>
+          <button class="text-button" id="guideSkip" type="button">我已会了，直接开始</button>
+        </div>
+      </section>
+    `;
+    backdrop.querySelector("#guideStart").addEventListener("click", () => {
+      closeWelcome();
+      setTimeout(() => openGuideStep(0), 120);
+    });
+    backdrop.querySelector("#guideSkip").addEventListener("click", () => {
+      closeWelcome();
+      finishGuide();
+    });
+    backdrop.addEventListener("click", (event) => {
+      if (event.target === backdrop) closeWelcome();
+    });
+    backdrop.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeWelcome();
+    });
+    document.addEventListener("keydown", handleGuideKeydown);
+    document.body.append(backdrop);
+    guide.welcome = backdrop;
+    backdrop.querySelector("#guideStart").focus({ preventScroll: true });
+  }
+
+  function closeWelcome() {
+    document.removeEventListener("keydown", handleGuideKeydown);
+    guide.welcome?.remove();
+    guide.welcome = null;
+  }
+
+  function handleGuideKeydown(event) {
+    if (event.key !== "Escape") return;
+    event.preventDefault();
+    if (guide.welcome) {
+      closeWelcome();
+      finishGuide();
+    } else if (guide.active) {
+      finishGuide();
+    }
+  }
+
+  function openGuideStep(index) {
+    guide.step = clamp(index, 0, GUIDE_STEPS.length - 1);
+    guide.active = true;
+    guide.root.hidden = false;
+    closeWelcome();
+    document.addEventListener("keydown", handleGuideKeydown);
+    placeGuide();
+    guide.popover.scrollIntoView({ block: "nearest" });
+    requestAnimationFrame(placeGuide);
+    guide.popover.querySelector(".ui-guide-next").focus({ preventScroll: true });
+  }
+
+  function nextGuideStep() {
+    if (!guide.active) return;
+    if (guide.step >= GUIDE_STEPS.length - 1) {
+      finishGuide();
+      return;
+    }
+    openGuideStep(guide.step + 1);
+  }
+
+  function finishGuide() {
+    guide.active = false;
+    if (guide.root) guide.root.hidden = true;
+    closeWelcome();
+    document.removeEventListener("keydown", handleGuideKeydown);
+    try {
+      localStorage.setItem(GUIDE_SEEN_KEY, "1");
+    } catch {
+      // A browser with storage disabled simply sees the guide again next time.
+    }
+    refreshAllThumbnails();
+  }
+
+  function placeGuide() {
+    if (!guide.active || !guide.root || guide.root.hidden) return;
+    const current = GUIDE_STEPS[guide.step];
+    const raw = current.target();
+    const targets = (Array.isArray(raw) ? raw : [raw]).filter((target) => target && target.getClientRects().length);
+    if (targets.length === 0) {
+      finishGuide();
+      return;
+    }
+    // On phones the layout is vertical: bring the highlighted control into view first.
+
+    const rects = targets.map((target) => target.getBoundingClientRect());
+    const left = Math.min(...rects.map((rect) => rect.left));
+    const top = Math.min(...rects.map((rect) => rect.top));
+    const right = Math.max(...rects.map((rect) => rect.right));
+    const bottom = Math.max(...rects.map((rect) => rect.bottom));
+    const marker = guide.marker;
+    marker.style.left = `${left - 5}px`;
+    marker.style.top = `${top - 5}px`;
+    marker.style.width = `${right - left + 10}px`;
+    marker.style.height = `${bottom - top + 10}px`;
+
+    guide.popover.querySelector(".ui-guide-index").textContent = `${String(guide.step + 1).padStart(2, "0")} / ${String(GUIDE_STEPS.length).padStart(2, "0")}`;
+    guide.popover.querySelector("h3").textContent = current.title;
+    guide.popover.querySelector("p").textContent = current.body;
+    guide.popover.querySelector(".ui-guide-dots").innerHTML = GUIDE_STEPS.map((_, index) => `<i class="${index === guide.step ? "on" : ""}"></i>`).join("");
+    guide.popover.querySelector(".ui-guide-next").textContent = current.next || "下一步";
+
+    const width = guide.popover.offsetWidth;
+    const height = guide.popover.offsetHeight;
+    const margin = 12;
+    const anchor = targets[targets.length - 1].getBoundingClientRect();
+    let popLeft = anchor.right + 16;
+    let popTop = anchor.top;
+    if (popLeft + width > window.innerWidth - margin) popLeft = anchor.left - width - 16;
+    if (popLeft < margin) popLeft = clamp(anchor.left, margin, window.innerWidth - width - margin);
+    popTop = clamp(popTop, margin, window.innerHeight - height - margin);
+    guide.popover.style.left = `${popLeft}px`;
+    guide.popover.style.top = `${popTop}px`;
+  }
+
+  function announceGuide() {
+    guide.active = false;
+    if (guide.root) guide.root.hidden = true;
+    closeWelcome();
+    try {
+      localStorage.removeItem(GUIDE_SEEN_KEY);
+    } catch {
+      // Ignore storage failures; the guide can still be replayed from this session.
+    }
+    openWelcome();
   }
 
   function calculateOutputSize(item, maxTextureSize) {

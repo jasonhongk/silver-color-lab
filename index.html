@@ -39,7 +39,8 @@
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%231c1c19'/%3E%3Crect x='8' y='16' width='48' height='34' rx='5' fill='%23e9e4d8'/%3E%3Cpath d='M17 16v34M23 16v5M29 16v5M35 16v5M41 16v5M47 16v34' stroke='%231c1c19' stroke-width='3'/%3E%3Ccircle cx='32' cy='33' r='10' fill='%23c16b36'/%3E%3Ccircle cx='32' cy='33' r='5' fill='%231c1c19'/%3E%3C/svg%3E" />
     <link rel="apple-touch-icon" href="icon-192.png" />
     <link rel="manifest" href="site.webmanifest" />
-    <link rel="stylesheet" href="styles.css?v=20261023d" />
+    <link rel="stylesheet" href="styles.css?v=20261024b" />
+    <link rel="stylesheet" href="onboarding.css?v=20261024b" />
   </head>
   <body>
     <div class="page-grain" aria-hidden="true"></div>
@@ -106,6 +107,7 @@
             <p>
               依据公开官方描述、联名工作流与民间经典取向独立调色，并非品牌官方 LUT 或认证。
               <a class="basis-link" href="about.html" target="_blank" rel="noreferrer">查看调色依据 ↗</a>
+              <button class="basis-link guide-replay" id="guideReplay" type="button">再看一遍用法</button>
             </p>
           </div>
         </aside>
@@ -143,7 +145,7 @@
                 </div>
                 <p class="eyebrow">DROP YOUR MOMENTS HERE</p>
                 <h2>把照片放进暗房</h2>
-                <p class="empty-copy">一次选多张。先挑气质，再一键套到整条片卷。</p>
+                <p class="empty-copy">可以一次选多张。选好后，在左侧挑气质，再按“套到全部”。</p>
                 <button class="button button-accent button-large" id="emptyAdd" type="button">
                   选择照片 <span aria-hidden="true">↗</span>
                 </button>
@@ -202,7 +204,7 @@
               </div>
               <div class="stage-hint">
                 <span class="hint-line"></span>
-                拖动中线看原片 · 方向键切换照片
+                拖动中线看原片 · ← → 换照片 · B 看原片
               </div>
             </div>
           </div>
@@ -275,6 +277,11 @@
               <output id="grainValue" for="grainSlider">标准</output>
             </div>
             <input class="range-control" id="grainSlider" type="range" min="0" max="150" value="100" />
+
+            <div class="recommend-row">
+              <span id="recommendNote">建议先用推荐值：强度 100%，品牌味已完整；颗粒 100%，细腻可见。</span>
+              <button class="recommend-reset" id="recommendReset" type="button">回到推荐值</button>
+            </div>
           </section>
 
           <button class="button button-sync reveal reveal-3" id="applyAll" type="button" disabled>
@@ -293,7 +300,7 @@
                 <h3>一张照片，四种气质</h3>
               </div>
             </div>
-            <p>一条片卷同时冲出哈苏、徕卡、理光、富士四个版本。</p>
+            <p>每张照片同时冲出哈苏、徕卡、理光、富士四个版本，打包下载。</p>
             <div class="four-brands" aria-hidden="true">
               <span class="brand-chip chip-h">H</span>
               <span class="brand-chip chip-l">L</span>
@@ -383,6 +390,6 @@
       <div class="noscript">这个调色台需要启用 JavaScript。</div>
     </noscript>
 
-    <script src="app.js?v=20261023d" defer></script>
+    <script src="app.js?v=20261024b" defer></script>
   </body>
 </html>
