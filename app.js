@@ -2133,8 +2133,11 @@
     try {
       return await decodeImageElement(file);
     } catch (error) {
-      if (allowHeicFallback && isHeicFile(file) && typeof window.heic2any === "function") {
-        const converted = await window.heic2any({
+      if (allowHeicFallback && isHeicFile(file)) {
+        const heic2any = await loadHeicDecoder();
+        if (!heic2any) throw error;
+
+        const converted = await heic2any({
           blob: file,
           toType: "image/jpeg",
           quality: 0.94,
@@ -2150,6 +2153,30 @@
       }
       throw error;
     }
+  }
+
+  let heicDecoderPromise = null;
+
+  // Load the 1.3 MB HEIC decoder only when an actual HEIC photo shows up.
+  async function loadHeicDecoder() {
+    if (typeof window.heic2any === "function") return window.heic2any;
+    if (!heicDecoderPromise) {
+      heicDecoderPromise = new Promise((resolve, reject) => {
+        const script = document.createElement("script");
+        script.src = "heic2any.min.js";
+        script.async = true;
+        script.onload = () =>
+          typeof window.heic2any === "function"
+            ? resolve(window.heic2any)
+            : reject(new Error("HEIC decoder loaded without exposing heic2any"));
+        script.onerror = () => reject(new Error("Unable to load the HEIC decoder"));
+        document.head.append(script);
+      }).catch((error) => {
+        heicDecoderPromise = null;
+        throw error;
+      });
+    }
+    return heicDecoderPromise;
   }
 
   function decodeImageElement(file) {
