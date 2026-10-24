@@ -1299,6 +1299,7 @@
 
   const RECOMMENDED_LOOK = { strength: 1, grain: 1 };
   const GUIDE_SEEN_KEY = "silverhalide-guide-seen-v1";
+  const GUIDE_WELCOMED_KEY = "silverhalide-guide-welcomed";
 
   const MAX_FILES = 40;
   const PREVIEW_EDGE = 1600;
@@ -1308,10 +1309,249 @@
   const PRESET_MAP = new Map(PRESETS.map((preset) => [preset.id, preset]));
   const SETTINGS_KEY = "silverhalide-lab-settings-v2";
 
+  const PRESET_ORDER = [
+    "hasselblad-hncs",
+    "hasselblad-warm",
+    "hasselblad-portrait",
+    "leica-m11",
+    "leica-classic",
+    "leica-m9",
+    "leica-night",
+    "leica-mono",
+    "ricoh-positive",
+    "ricoh-negative",
+    "ricoh-hi-bw",
+    "ricoh-retro",
+    "ricoh-bleach",
+    "fujifilm-provia",
+    "fujifilm-velvia",
+    "fujifilm-astia",
+    "fujifilm-classic-chrome",
+    "fujifilm-classic-neg",
+    "fujifilm-pro-neg-hi",
+    "fujifilm-nostalgic-neg",
+    "fujifilm-acros",
+    "fujifilm-eterna",
+    "dji-hncs-natural",
+    "dji-aerial-landscape",
+    "xiaomi-leica-authentic",
+    "xiaomi-leica-vibrant",
+    "xiaomi-leica-moment",
+    "xiaomi-master-portrait",
+    "oppo-hasselblad-natural",
+    "oppo-hasselblad-master",
+    "oppo-hasselblad-portrait",
+    "capture-one-nordic",
+    "capture-one-latitude",
+    "phocus-hncs-editorial",
+  ];
+
+  // Keyed by preset id, so duplicate Chinese names (e.g. 大师人像) keep distinct English copy.
+  const PRESET_COPY_EN = {
+    "hasselblad-hncs": {
+      name: "HNCS Natural",
+      tagline: "Straight skin · creamy highlights",
+      notes: "An independent approximation of HNCS natural colour, smooth tonality and continuous skin rendering. Not an official LUT.",
+    },
+    "hasselblad-warm": {
+      name: "Warm Editorial",
+      tagline: "Amber light · cool slate shadows",
+      notes: "Keeps the low-saturation medium-format base, then lifts amber highlights and cool shadows for an editorial sense of space.",
+    },
+    "hasselblad-portrait": {
+      name: "Medium-Format Skin",
+      tagline: "Soft transitions · quiet tint",
+      notes: "Restrains saturated colour and protects the continuous transition between skin and highlights.",
+    },
+    "leica-m11": {
+      name: "M11 Natural",
+      tagline: "Fine detail · deep, not dull",
+      notes: "Aim is fine tonal separation, natural rendering and clean shadows. No exaggerated bokeh or colour cast.",
+    },
+    "leica-classic": {
+      name: "Classic Leica",
+      tagline: "Deep black · cool shadow · restrained red",
+      notes: "Lifts micro-contrast and cools the shadows while keeping reds rich but not overripe.",
+    },
+    "leica-m9": {
+      name: "M9 CCD",
+      tagline: "Teal shadows · dense red",
+      notes: "Teal-green shadows, thicker reds and moderate contrast evoke the CCD era. Not a sensor simulation.",
+    },
+    "leica-night": {
+      name: "Noctilux",
+      tagline: "Blue night · warm lamps",
+      notes: "Built for low light: a deep blue night and warm points of lamplight with lifted shadows.",
+    },
+    "leica-mono": {
+      name: "Monochrom",
+      tagline: "Pure light · shadow detail",
+      notes: "Follows the Monochrom idea of fine grey graduation, a clean midtone and detail held deep in the blacks.",
+    },
+    "ricoh-positive": {
+      name: "Positive Film",
+      tagline: "High contrast · vivid street colour",
+      notes: "A punchy positive-film street look with dense colour, brighter reds and crisp mids.",
+    },
+    "ricoh-negative": {
+      name: "Negative Film",
+      tagline: "Green-grey shadows · soft skin",
+      notes: "A softer negative-film look with green-grey shadows and gentle skin tones.",
+    },
+    "ricoh-hi-bw": {
+      name: "Hi-Contrast B&W",
+      tagline: "Hard light · coarse grain",
+      notes: "Hard mono contrast and visible grain for documentary and flash-lit street work.",
+    },
+    "ricoh-retro": {
+      name: "Nostalgic",
+      tagline: "Faded amber · print grey",
+      notes: "Faded amber highlights and print-like grey shadows give a gently aged snapshot feel.",
+    },
+    "ricoh-bleach": {
+      name: "Bleach Bypass",
+      tagline: "Silver grey · low saturation, high contrast",
+      notes: "A bleach-bypass mood: low saturation, raised contrast and a cool silver sheen.",
+    },
+    "fujifilm-provia": {
+      name: "PROVIA",
+      tagline: "Everyday · natural",
+      notes: "Approximates PROVIA's balanced, natural standard colour for general use.",
+    },
+    "fujifilm-velvia": {
+      name: "VELVIA",
+      tagline: "Rich landscapes · stronger red and green",
+      notes: "Approximates VELVIA's saturated landscape palette with deeper reds, greens and shadows.",
+    },
+    "fujifilm-astia": {
+      name: "ASTIA",
+      tagline: "Soft skin · lower contrast",
+      notes: "Approximates ASTIA's softer skin rendering, lower contrast and gentle highlights.",
+    },
+    "fujifilm-classic-chrome": {
+      name: "Classic Chrome",
+      tagline: "Muted colour · deep shadows",
+      notes: "Approximates Classic Chrome's documentary palette: muted colour and deeper shadows.",
+    },
+    "fujifilm-classic-neg": {
+      name: "Classic Neg.",
+      tagline: "Hard tone · amber memory",
+      notes: "Approximates Classic Negative's amber highlights, hard greens and nostalgic print feel.",
+    },
+    "fujifilm-pro-neg-hi": {
+      name: "PRO Neg. Hi",
+      tagline: "Portrait · a touch more contrast",
+      notes: "Approximates PRO Neg. Hi's portrait-friendly skin and a small lift in contrast.",
+    },
+    "fujifilm-nostalgic-neg": {
+      name: "Nostalgic Neg.",
+      tagline: "Amber highlights · print feel",
+      notes: "Approximates Nostalgic Negative: amber highlights, deep shadows and a print-like feel.",
+    },
+    "fujifilm-acros": {
+      name: "ACROS",
+      tagline: "Rich greys · fine grain",
+      notes: "Approximates ACROS's deep blacks, wide grey range and smooth fine grain.",
+    },
+    "fujifilm-eterna": {
+      name: "ETERNA",
+      tagline: "Muted colour · thick shadows",
+      notes: "Approximates ETERNA's cinema look: muted colour, clean mids and thick shadows.",
+    },
+    "dji-hncs-natural": {
+      name: "HNCS Natural",
+      tagline: "Natural · true aerial colour",
+      notes: "An independent approximation of DJI and Hasselblad HNCS natural colour. Not an official LUT.",
+    },
+    "dji-aerial-landscape": {
+      name: "Aerial Landscape",
+      tagline: "Open sky · crisp distance",
+      notes: "Builds a clean aerial look with open sky and crisp distant detail.",
+    },
+    "xiaomi-leica-authentic": {
+      name: "Leica Classic",
+      tagline: "Dense shadows · restrained red",
+      notes: "Follows the Xiaomi Leica Classic direction: dense shadows and restrained reds.",
+    },
+    "xiaomi-leica-vibrant": {
+      name: "Leica Vibrant",
+      tagline: "Clear colour · bright tonality",
+      notes: "Follows the Xiaomi Leica Vibrant direction with clear colour and bright tonal steps.",
+    },
+    "xiaomi-leica-moment": {
+      name: "Street Moment",
+      tagline: "Fast response · people first",
+      notes: "A street-first look with quick, assertive midtones and people leading the frame.",
+    },
+    "xiaomi-master-portrait": {
+      name: "Master Portrait",
+      tagline: "Skin first · soft highlights",
+      notes: "Portrait-first: skin is protected before contrast, with soft highlight transitions.",
+    },
+    "oppo-hasselblad-natural": {
+      name: "Hasselblad Natural",
+      tagline: "Natural colour · classic tonality",
+      notes: "An independent approximation of OPPO × Hasselblad natural colour and classic tonality.",
+    },
+    "oppo-hasselblad-master": {
+      name: "Hasselblad Master",
+      tagline: "Pro depth · quiet saturation",
+      notes: "Follows the OPPO × Hasselblad Master direction with professional tonal depth and quiet colour.",
+    },
+    "oppo-hasselblad-portrait": {
+      name: "Master Portrait",
+      tagline: "Fine skin · sculpted light",
+      notes: "Portrait emphasis on natural skin and separation between face and background light.",
+    },
+    "capture-one-nordic": {
+      name: "Nordic Edit",
+      tagline: "Cool space · editorial calm",
+      notes: "Inspired by Capture One's Nordic Editorial category: low saturation, cool air and held shadow detail.",
+    },
+    "capture-one-latitude": {
+      name: "Latitude",
+      tagline: "Rich colour · deep tone · high contrast",
+      notes: "A Capture One Latitude-style edit with rich colour, deep tonality and strong contrast.",
+    },
+    "phocus-hncs-editorial": {
+      name: "Phocus HNCS",
+      tagline: "Medium format · soft transition · true colour",
+      notes: "An editorial approximation of the Hasselblad Phocus / HNCS true-colour and soft-transition workflow.",
+    },
+  };
+
+  const SOURCE_COPY_EN = {
+    "中画幅暖调编辑共识": "Medium-format warm editorial consensus",
+    "HNCS 肤色与层次取向": "HNCS skin and tonal direction",
+    "徕卡社区“德味”共识": "Leica community 'Deutsch' consensus",
+    "M9 / CCD 时代社区色感": "M9 / CCD-era community colour",
+    "Noctilux 夜景社区配方": "Noctilux night community recipe",
+    "FUJIFILM 官方说明书 · PROVIA/STANDARD": "FUJIFILM manual · PROVIA/STANDARD",
+    "FUJIFILM 官方说明书 · Velvia/VIVID": "FUJIFILM manual · Velvia/VIVID",
+    "FUJIFILM 官方说明书 · ASTIA/SOFT": "FUJIFILM manual · ASTIA/SOFT",
+    "FUJIFILM 官方说明书 · CLASSIC CHROME": "FUJIFILM manual · CLASSIC CHROME",
+    "FUJIFILM 官方说明书 · CLASSIC Neg.": "FUJIFILM manual · CLASSIC Neg.",
+    "FUJIFILM 官方说明书 · PRO Neg. Hi": "FUJIFILM manual · PRO Neg. Hi",
+    "FUJIFILM 官方说明书 · NOSTALGIC Neg.": "FUJIFILM manual · NOSTALGIC Neg.",
+    "FUJIFILM 官方说明书 · ACROS": "FUJIFILM manual · ACROS",
+    "FUJIFILM 官方说明书 · ETERNA/CINEMA": "FUJIFILM manual · ETERNA/CINEMA",
+    "DJI 航拍社区风光取向": "DJI aerial landscape community look",
+    "小米 × 徕卡 · Leica Authentic Look": "Xiaomi × Leica · Leica Authentic Look",
+    "小米 × 徕卡 · Leica Vibrant Look": "Xiaomi × Leica · Leica Vibrant Look",
+    "小米街拍模式 + 人文街拍共识": "Xiaomi street mode + documentary consensus",
+    "OPPO × 哈苏 · 自然色彩 / 经典影调": "OPPO × Hasselblad · natural colour / classic tonality",
+    "OPPO × 哈苏 · 大师模式": "OPPO × Hasselblad · Master mode",
+    "OPPO × 哈苏 · 全焦段大师人像": "OPPO × Hasselblad · Master Portrait",
+    "Capture One · Nordic Editorial 风格类别": "Capture One · Nordic Editorial category",
+    "Capture One · Latitude 风格类别": "Capture One · Latitude category",
+    "Hasselblad Phocus / HNCS 工作流": "Hasselblad Phocus / HNCS workflow",
+  };
+
   const state = {
     items: [],
     activeId: null,
     selectedPresetId: DEFAULT_PRESET,
+    lastPresetId: DEFAULT_PRESET,
     brandFilter: "all",
     strength: 1,
     grain: 1,
@@ -1331,6 +1571,23 @@
   let exportRenderer;
   let fileSequence = 0;
   let toastSequence = 0;
+  let previewFitFrame = 0;
+  let lastPreviewLookId = "";
+  let lastFilmstripSignature = "";
+
+  const i18n = window.SilverI18n;
+  const t = (key, params) => i18n.t(key, params);
+  const isEnglish = () => i18n.language === "en";
+  const presetName = (preset) =>
+    (isEnglish() ? PRESET_COPY_EN[preset.id]?.name : "") || preset.name;
+  const presetTagline = (preset) =>
+    (isEnglish() ? PRESET_COPY_EN[preset.id]?.tagline : "") || preset.tagline;
+  const presetNotes = (preset) =>
+    (isEnglish() ? PRESET_COPY_EN[preset.id]?.notes : "") || preset.notes;
+  const presetSource = (preset) =>
+    (isEnglish() ? SOURCE_COPY_EN[preset.sourceName] : "") || preset.sourceName;
+  const presetBasis = (preset) =>
+    t(preset.basis === "官方取向" ? "basis.official" : "basis.community");
 
   const VERTEX_SHADER = `
     attribute vec2 aPosition;
@@ -1753,6 +2010,10 @@
       "lookTotal",
       "brandTabs",
       "presetGrid",
+      "mobileLookDock",
+      "mobileBrandTabs",
+      "mobileLookRail",
+      "mobileDockCount",
       "dropZone",
       "currentFilename",
       "currentDimension",
@@ -1787,6 +2048,11 @@
       "lookNotes",
       "strengthSlider",
       "strengthValue",
+      "stageStrength",
+      "stageStrengthValue",
+      "stageGrain",
+      "stageGrainValue",
+      "readoutApplyState",
       "grainSlider",
       "grainValue",
       "recommendNote",
@@ -1826,6 +2092,14 @@
     dom.qualityValue = document.getElementById("qualityValue");
   }
 
+  function boot() {
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", init, { once: true });
+    } else {
+      init();
+    }
+  }
+
   function init() {
     cacheDom();
     restoreSettings();
@@ -1833,13 +2107,19 @@
     thumbRenderer = new FilmRenderer(document.createElement("canvas"));
     exportRenderer = new FilmRenderer(document.createElement("canvas"));
 
-    dom.lookTotal.textContent = String(PRESETS.length).padStart(2, "0");
-    renderPresets();
     bindEvents();
     setupDragAndDrop();
-    syncControls();
+    applyLanguage(i18n.language);
     updateInterface();
-    requestAnimationFrame(() => prepareGuide());
+    // A language switch reloads the page. If the welcome card was already
+    // shown in that session, resume at the tour instead of showing it again.
+    let welcomedThisSession = false;
+    try {
+      welcomedThisSession = sessionStorage.getItem(GUIDE_WELCOMED_KEY) === "1";
+    } catch {
+      // Private browsers without session storage simply see the welcome again.
+    }
+    requestAnimationFrame(() => prepareGuide({ quiet: welcomedThisSession }));
   }
 
   function restoreSettings() {
@@ -1847,6 +2127,10 @@
       const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
       if (typeof saved.strength === "number") state.strength = clamp(saved.strength, 0, 1.6);
       if (typeof saved.grain === "number") state.grain = clamp(saved.grain, 0, 1.5);
+      if (PRESET_MAP.has(saved.lastPresetId)) {
+        state.lastPresetId = saved.lastPresetId;
+        state.selectedPresetId = saved.lastPresetId;
+      }
       if (["4096", "6000", "2560", "original"].includes(saved.size)) state.size = saved.size;
       if (["jpeg", "png"].includes(saved.format)) state.format = saved.format;
       if (typeof saved.quality === "number") state.quality = clamp(saved.quality, 70, 100);
@@ -1862,6 +2146,7 @@
         JSON.stringify({
           strength: state.strength,
           grain: state.grain,
+          lastPresetId: state.lastPresetId,
           size: state.size,
           format: state.format,
           quality: state.quality,
@@ -1870,6 +2155,75 @@
     } catch {
       // Settings persistence is optional.
     }
+  }
+
+  function readGuideSeen() {
+    try {
+      return localStorage.getItem(GUIDE_SEEN_KEY) === "1";
+    } catch {
+      return false;
+    }
+  }
+
+  function markGuideSeen() {
+    try {
+      localStorage.setItem(GUIDE_SEEN_KEY, "1");
+    } catch {
+      // A browser with storage disabled simply sees the guide again next time.
+    }
+  }
+
+  function applyLanguage(language, options = {}) {
+    if (language !== "en" && language !== "zh") return;
+    if (i18n.language !== language) i18n.setLanguage(language);
+    const en = language === "en";
+
+    document.documentElement.lang = en ? "en" : "zh-CN";
+    document.documentElement.dataset.lang = language;
+    document.title = en ? "Silver Lab · Film mood, on demand" : "银盐调色台 · 胶片气质实验室";
+
+    for (const node of document.querySelectorAll("[data-i18n]")) {
+      node.textContent = t(node.dataset.i18n);
+    }
+    for (const node of document.querySelectorAll("[data-i18n-aria]")) {
+      node.setAttribute("aria-label", t(node.dataset.i18nAria));
+    }
+    for (const button of document.querySelectorAll(".lang-option")) {
+      const active = button.dataset.lang === language;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", String(active));
+    }
+    const chip = document.querySelector(".lang-switch");
+    if (chip) {
+      chip.dataset.active = language;
+      chip.classList.remove("is-flipping");
+      void chip.offsetWidth;
+      chip.classList.add("is-flipping");
+    }
+
+    dom.lookTotal.textContent = String(PRESETS.length).padStart(2, "0");
+    dom.mobileDockCount.textContent = t("count.looks", { count: PRESETS.length });
+    renderPresets();
+    renderMobileLooks();
+    updateInterface();
+
+    document.documentElement.classList.remove("lang-swapping");
+    if (!options.silent) {
+      void document.documentElement.offsetWidth;
+      document.documentElement.classList.add("lang-swapping");
+      window.setTimeout(() => document.documentElement.classList.remove("lang-swapping"), 420);
+    }
+
+    if (guide.active) refreshGuideCopy();
+    if (guide.welcome) refreshWelcomeCopy();
+    if (!options.silent && options.savedHint) {
+      showToast(en ? "Interface switched to English." : "界面已切换为中文。", "good", 2200);
+    }
+  }
+
+  function setLanguage(language) {
+    if (i18n.language === language) return;
+    applyLanguage(language, { savedHint: true });
   }
 
   function bindEvents() {
@@ -1886,18 +2240,37 @@
       addFiles(Array.from(event.target.files || []));
     });
 
-    dom.brandTabs.addEventListener("click", (event) => {
-      const tab = event.target.closest("[data-brand]");
-      if (!tab) return;
-      state.brandFilter = tab.dataset.brand;
-      for (const button of dom.brandTabs.querySelectorAll("[data-brand]")) {
-        const active = button === tab;
-        button.classList.toggle("active", active);
-        button.setAttribute("aria-selected", String(active));
-      }
-      renderPresets();
-      dom.presetGrid.scrollTop = 0;
+    for (const button of document.querySelectorAll(".lang-option")) {
+      button.addEventListener("click", () => setLanguage(button.dataset.lang));
+    }
+
+    dom.brandTabs.addEventListener("click", handleBrandClick);
+    dom.mobileBrandTabs.addEventListener("click", handleBrandClick);
+
+    // On a phone, swiping the look rail means browsing: the cards only show a
+    // photo preview while scrolling. A real tap (little movement) still picks.
+    let railPress = null;
+    dom.mobileLookRail.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse" || dom.mobileLookRail.scrollWidth <= dom.mobileLookRail.clientWidth) return;
+      railPress = { x: event.clientX, y: event.clientY, card: event.target.closest(".mobile-look-card") };
+      dom.mobileLookRail.classList.add("is-scrolling");
     });
+    dom.mobileLookRail.addEventListener("pointerup", () => {
+      window.setTimeout(() => {
+        dom.mobileLookRail.classList.remove("is-scrolling");
+        railPress = null;
+      }, 150);
+    });
+    dom.mobileLookRail.addEventListener("pointercancel", () => {
+      dom.mobileLookRail.classList.remove("is-scrolling");
+      railPress = null;
+    });
+    dom.mobileLookRail.addEventListener("click", (event) => {
+      const card = event.target.closest(".mobile-look-card");
+      if (!card || !railPress || railPress.card !== card) return;
+      const moved = Math.hypot(event.clientX - railPress.x, event.clientY - railPress.y);
+      if (moved > 7) event.stopImmediatePropagation();
+    }, true);
 
     dom.prevPhoto.addEventListener("click", () => moveSelection(-1));
     dom.nextPhoto.addEventListener("click", () => moveSelection(1));
@@ -1906,11 +2279,21 @@
       setSplit(Number(event.target.value));
     });
 
+    dom.previewWrap.addEventListener("click", (event) => {
+      if (!window.matchMedia("(max-width: 790px)").matches) return;
+      if (event.target.closest(".split-range, .split-handle")) return;
+      setStageDepth(0);
+      dom.mobileLookRail?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+
     dom.strengthSlider.addEventListener("input", (event) => {
       state.strength = Number(event.target.value) / 100;
       dom.strengthValue.textContent = `${event.target.value}%`;
+      dom.stageStrength.value = event.target.value;
+      dom.stageStrengthValue.textContent = `${event.target.value}%`;
       syncRecommendation();
       paintRange(dom.strengthSlider);
+      paintRange(dom.stageStrength);
       renderPreview();
     });
 
@@ -1922,8 +2305,11 @@
     dom.grainSlider.addEventListener("input", (event) => {
       state.grain = Number(event.target.value) / 100;
       dom.grainValue.textContent = grainLabel(event.target.value);
+      dom.stageGrain.value = event.target.value;
+      dom.stageGrainValue.textContent = grainLabel(event.target.value);
       syncRecommendation();
       paintRange(dom.grainSlider);
+      paintRange(dom.stageGrain);
       renderPreview();
     });
 
@@ -1932,24 +2318,44 @@
       refreshAllThumbnails();
     });
 
+    dom.stageStrength.addEventListener("input", (event) => {
+      dom.strengthSlider.value = event.target.value;
+      dom.strengthSlider.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    dom.stageStrength.addEventListener("change", () => {
+      dom.strengthSlider.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    dom.stageGrain.addEventListener("input", (event) => {
+      dom.grainSlider.value = event.target.value;
+      dom.grainSlider.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    dom.stageGrain.addEventListener("change", () => {
+      dom.grainSlider.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
     dom.recommendReset.addEventListener("click", () => {
       const atRecommended =
         Math.abs(state.strength - RECOMMENDED_LOOK.strength) < 0.005 &&
         Math.abs(state.grain - RECOMMENDED_LOOK.grain) < 0.005;
       if (atRecommended) {
-        showToast("你现在用的就是推荐值：强度 100%，颗粒 100%。");
+        showToast(t("toast.alreadyRecommended"));
         return;
       }
-      state.strength = RECOMMENDED_LOOK.strength;
-      state.grain = RECOMMENDED_LOOK.grain;
-      syncControls();
-      renderPreview();
-      refreshAllThumbnails();
-      persistSettings();
-      showToast("已回到推荐值：强度 100%，颗粒 100%。", "good");
+      animateRecommendation(() => {
+        state.strength = RECOMMENDED_LOOK.strength;
+        state.grain = RECOMMENDED_LOOK.grain;
+        syncControls();
+        renderPreview();
+        refreshAllThumbnails();
+        persistSettings();
+      });
+      showToast(t("toast.returnedRecommended"), "good");
     });
 
-    dom.applyAll.addEventListener("click", applyCurrentLookToAll);
+    dom.applyAll.addEventListener("click", () => {
+      if (activeLookAppliesToAll()) return;
+      applyCurrentLookToAll();
+    });
     dom.guideReplay.addEventListener("click", announceGuide);
     dom.fourLookExport.addEventListener("click", () => runExport("four"));
     dom.exportAll.addEventListener("click", () => runExport("all"));
@@ -1959,7 +2365,40 @@
       if (state.items.length === 0) {
         openPicker();
       } else {
-        runExport("all");
+        const print = document.getElementById("depthPrint");
+        if (window.matchMedia("(max-width: 790px)").matches && print) {
+          setStageDepth(2);
+          print.closest(".stage-card")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          cueExportCard();
+        } else {
+          runExport("all");
+        }
+      }
+    });
+
+    document.getElementById("mobileApplyAll")?.addEventListener("click", () => {
+      if (!activeLookAppliesToAll()) applyCurrentLookToAll();
+    });
+    document.getElementById("mobileExportOne")?.addEventListener("click", () => runExport("one"));
+    document.getElementById("mobileExportAll")?.addEventListener("click", () => runExport("all"));
+    document.getElementById("mobileSheetSettings")?.addEventListener("click", () => {
+      const panel = document.querySelector(".controls-panel");
+      panel?.classList.add("is-open");
+      panel?.scrollTo({ top: 0 });
+    });
+    document.getElementById("mobileSheetRoll")?.addEventListener("click", () => {
+      const sheet = document.querySelector(".filmstrip-card");
+      sheet?.classList.add("is-open");
+      sheet?.scrollTo({ top: 0 });
+    });
+    document.querySelector(".controls-heading-row")?.addEventListener("click", () => {
+      if (window.matchMedia("(max-width: 790px)").matches) {
+        document.querySelector(".controls-panel")?.classList.remove("is-open");
+      }
+    });
+    document.querySelector(".filmstrip-head h2")?.addEventListener("click", () => {
+      if (window.matchMedia("(max-width: 790px)").matches) {
+        document.querySelector(".filmstrip-card")?.classList.remove("is-open");
       }
     });
 
@@ -1993,7 +2432,7 @@
     dom.cancelExport.addEventListener("click", () => {
       state.cancelRequested = true;
       dom.cancelExport.disabled = true;
-      dom.processingDetail.textContent = "正在收好已经冲印的底片…";
+      dom.processingDetail.textContent = t("processing.cancelling");
     });
 
     document.addEventListener("keydown", (event) => {
@@ -2017,7 +2456,7 @@
       }
     });
 
-    window.addEventListener("resize", () => {
+  window.addEventListener("resize", () => {
       requestAnimationFrame(() => {
         fitPreviewFrame();
         placeGuide();
@@ -2027,6 +2466,38 @@
     window.addEventListener("beforeunload", () => {
       if (state.lastDownload) URL.revokeObjectURL(state.lastDownload.url);
     });
+  }
+
+  function schedulePreviewFit() {
+    window.cancelAnimationFrame(previewFitFrame);
+    previewFitFrame = window.requestAnimationFrame(fitPreviewFrame);
+    window.setTimeout(fitPreviewFrame, 60);
+    window.setTimeout(fitPreviewFrame, 280);
+  }
+
+  function handleBrandClick(event) {
+    const tab = event.target.closest("[data-brand]");
+    if (!tab) return;
+    state.brandFilter = tab.dataset.brand;
+    for (const button of document.querySelectorAll("[data-brand]")) {
+      const active = button.dataset.brand === state.brandFilter;
+      const isMobileTab = button.classList.contains("mobile-brand-tab");
+      button.classList.toggle("active", active);
+      button.setAttribute("aria-selected", String(active));
+      if (active && isMobileTab) {
+        button.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+      }
+    }
+    renderPresets();
+    renderMobileLooks();
+    dom.presetGrid.scrollTop = 0;
+    dom.mobileLookRail.scrollLeft = 0;
+  }
+
+  function animateRecommendation(callback) {
+    dom.recommendReset.classList.add("is-pressed");
+    window.setTimeout(() => dom.recommendReset.classList.remove("is-pressed"), 220);
+    callback();
   }
 
   function setupDragAndDrop() {
@@ -2065,28 +2536,28 @@
 
   async function addFiles(files) {
     if (state.exporting) {
-      showToast("正在冲印，请等这一批完成后再添加照片。");
+      showToast(t("toast.exporting"));
       return;
     }
 
     const room = MAX_FILES - state.items.length;
     if (room <= 0) {
-      showToast(`一次最多放 ${MAX_FILES} 张照片，方便保持流畅。`, "error");
+      showToast(t("toast.maxFiles", { max: MAX_FILES }), "error");
       return;
     }
 
     const supported = files.filter((file) => file && (file.type.startsWith("image/") || /\.(jpe?g|png|webp|heic|heif)$/i.test(file.name)));
     if (supported.length === 0) {
-      showToast("没有找到可读的照片。请选择 JPG、PNG 或 WebP。", "error");
+      showToast(t("toast.noSupported"), "error");
       return;
     }
 
     const batch = supported.slice(0, room);
     if (supported.length > room) {
-      showToast(`这次先放 ${room} 张，余下的可以下一批再加。`);
+      showToast(t("toast.roomLeft", { room }));
     }
 
-    showToast(`正在读入 ${batch.length} 张照片…`);
+    showToast(t("toast.reading", { count: batch.length }));
     const skipped = [];
 
     for (const file of batch) {
@@ -2107,7 +2578,7 @@
           previewSource,
           thumbSource,
           thumbUrl: "",
-          presetId: state.selectedPresetId,
+          presetId: state.lastPresetId,
           seed: 1.7 + state.items.length * 1.37,
         };
 
@@ -2116,7 +2587,7 @@
 
         if (!state.activeId) {
           state.activeId = item.id;
-          state.selectedPresetId = item.presetId;
+          state.selectedPresetId = state.lastPresetId;
         }
       } catch (error) {
         console.warn("Unable to read photo", file.name, error);
@@ -2127,7 +2598,7 @@
     if (state.items.length > 0) {
       if (!state.activeId) {
         state.activeId = state.items[0].id;
-        state.selectedPresetId = state.items[0].presetId;
+        state.selectedPresetId = state.lastPresetId;
       }
       dom.emptyState.hidden = true;
       dom.previewWrap.hidden = false;
@@ -2135,15 +2606,19 @@
 
     updateInterface();
     renderPreview();
+    if (window.matchMedia("(max-width: 790px)").matches) setStageDepth(batch ? 1 : 0);
 
     if (skipped.length) {
       showToast(
-        `${skipped.length} 张照片格式暂不支持：${skipped.slice(0, 3).join("、")}${skipped.length > 3 ? "…" : ""}`,
+        t("toast.skipped", {
+          count: skipped.length,
+          names: `${skipped.slice(0, 3).join("、")}${skipped.length > 3 ? "…" : ""}`,
+        }),
         "error",
         6500,
       );
     } else {
-      showToast(`已放入 ${batch.length} 张照片。`, "good");
+      showToast(t("toast.added", { count: batch.length }), "good");
     }
   }
 
@@ -2306,6 +2781,17 @@
     item.thumbUrl = renderThumbnail(item);
     const image = dom.filmstrip.querySelector(`[data-film-id="${item.id}"] img`);
     if (image) image.src = item.thumbUrl;
+    if (item.id === state.activeId) paintMobileLookPreviews();
+  }
+
+  function paintMobileLookPreviews() {
+    for (const card of dom.mobileLookRail?.querySelectorAll(".mobile-look-card") || []) {
+      const thumb = card.querySelector(".mobile-look-thumb");
+      if (!thumb) continue;
+      thumb.style.backgroundImage = "";
+      thumb.style.backgroundColor = "";
+      thumb.classList.remove("is-photo");
+    }
   }
 
   function refreshAllThumbnails() {
@@ -2316,22 +2802,24 @@
   }
 
   function renderPresets() {
-    const visible = PRESETS.filter(
-      (preset) => state.brandFilter === "all" || preset.brand === state.brandFilter,
-    );
+    const visible = filteredPresets();
 
     dom.presetGrid.replaceChildren();
 
     visible.forEach((preset, index) => {
       const brand = BRANDS[preset.brand];
+      const name = presetName(preset);
       const card = document.createElement("button");
       card.type = "button";
       card.className = "preset-card";
       card.dataset.presetId = preset.id;
       card.style.setProperty("--swatch", preset.swatch);
       card.setAttribute("role", "listitem");
-      card.setAttribute("aria-label", `${brand.name} ${preset.name}，${preset.basis}`);
-      card.title = `${brand.name} · ${brand.en} / ${preset.name} / ${preset.basis}`;
+      card.setAttribute(
+        "aria-label",
+        `${i18n.brandName(preset.brand)} ${name}, ${presetBasis(preset)}`,
+      );
+      card.title = `${i18n.brandName(preset.brand, true)} · ${brand.en} / ${name} / ${presetBasis(preset)}`;
 
       const swatch = document.createElement("span");
       swatch.className = "preset-swatch";
@@ -2344,10 +2832,10 @@
       copy.className = "preset-copy";
       copy.innerHTML = `
         <span class="preset-meta">
-          <span class="preset-brand">${brand.name}</span>
-          <span class="preset-basis ${preset.basis === "官方取向" ? "is-official" : "is-community"}">${preset.basis}</span>
+          <span class="preset-brand">${i18n.brandName(preset.brand)}</span>
+          <span class="preset-basis ${preset.basis === "官方取向" ? "is-official" : "is-community"}">${presetBasis(preset)}</span>
         </span>
-        <span class="preset-name">${preset.name}</span>
+        <span class="preset-name">${escapeHtml(name)}</span>
       `;
 
       const check = document.createElement("span");
@@ -2363,9 +2851,96 @@
     });
   }
 
+  function filteredPresets() {
+    return PRESETS.filter(
+      (preset) => state.brandFilter === "all" || preset.brand === state.brandFilter,
+    );
+  }
+
+  function renderMobileLooks() {
+    if (!dom.mobileBrandTabs || !dom.mobileLookRail) return;
+    dom.mobileBrandTabs.replaceChildren();
+    for (const brandId of ["all", ...Object.keys(BRANDS)]) {
+      const tab = document.createElement("button");
+      tab.type = "button";
+      tab.className = "mobile-brand-tab";
+      tab.dataset.brand = brandId;
+      tab.setAttribute("role", "tab");
+      tab.setAttribute("aria-selected", String(state.brandFilter === brandId));
+      tab.classList.toggle("active", state.brandFilter === brandId);
+      tab.textContent = brandId === "all" ? t("brand.all") : i18n.brandName(brandId);
+      dom.mobileBrandTabs.append(tab);
+    }
+
+    dom.mobileLookRail.replaceChildren();
+    const presetsInRail = filteredPresets();
+    const wideRail = presetsInRail.length > 4;
+    dom.mobileLookRail.classList.toggle("is-wide", wideRail);
+    if (dom.mobileDockCount) {
+      dom.mobileDockCount.replaceChildren();
+      if (wideRail) {
+        dom.mobileDockCount.append(String(presetsInRail.length));
+        const unit = document.createElement("span");
+        unit.textContent = t("looks.count");
+        dom.mobileDockCount.append(unit);
+      } else {
+        dom.mobileDockCount.textContent = t("looks.swipe");
+      }
+    }
+    presetsInRail.forEach((preset, index) => {
+      const brand = BRANDS[preset.brand];
+      const name = presetName(preset);
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "mobile-look-card";
+      card.dataset.presetId = preset.id;
+      card.style.setProperty("--swatch", preset.swatch);
+      card.setAttribute("role", "listitem");
+      card.setAttribute("aria-label", `${i18n.brandName(preset.brand)} ${name}`);
+      card.innerHTML = `
+        <span class="mobile-look-thumb">
+          <span class="swatch-letter">${brand.letter}</span>
+          <span class="mobile-look-no">${String(index + 1).padStart(2, "0")}</span>
+        </span>
+        <span class="mobile-look-name">${escapeHtml(name)}</span>
+        <span class="mobile-look-brand">${escapeHtml(i18n.brandName(preset.brand))}</span>
+        <span class="mobile-look-pick" aria-hidden="true">
+          <svg viewBox="0 0 12 12"><path d="M2.5 6.4l2.2 2.2 4.8-5" /></svg>
+        </span>
+      `;
+      if (window.matchMedia("(max-width: 790px)").matches) {
+        const thumb = card.querySelector(".mobile-look-thumb");
+        thumb.style.backgroundImage = `linear-gradient(165deg, rgba(255,255,255,0.34), rgba(255,255,255,0.05) 54%, rgba(0,0,0,0.08)), ${preset.swatch}`;
+        thumb.querySelector(".swatch-letter")?.setAttribute("hidden", "");
+      }
+      card.classList.toggle("active", preset.id === state.selectedPresetId);
+      card.addEventListener("click", () => {
+        selectPreset(preset.id);
+        const mobile = window.matchMedia("(max-width: 790px)").matches;
+        if (!mobile) {
+          card.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+          return;
+        }
+        // On a phone, one tap picks a look. Touching the photo opens the full rail again.
+        setStageDepth(1);
+        card.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+        dom.dropZone.classList.remove("is-look-swapped");
+        void dom.dropZone.offsetWidth;
+        dom.dropZone.classList.add("is-look-swapped");
+        window.setTimeout(() => dom.dropZone.classList.remove("is-look-swapped"), 700);
+      });
+      dom.mobileLookRail.append(card);
+    });
+  }
+
   function selectPreset(presetId) {
     if (!PRESET_MAP.has(presetId)) return;
+    const preset = getPreset(presetId);
     state.selectedPresetId = presetId;
+    state.lastPresetId = presetId;
+    persistSettings();
+    // On a phone the rail only shows one brand, so tapping a look never strands the active one.
+    if (window.matchMedia("(max-width: 790px)").matches) state.brandFilter = preset.brand;
     const active = getActiveItem();
 
     if (active) {
@@ -2375,11 +2950,15 @@
 
     updatePresetSelection();
     updateLookReadout();
-    renderPreview();
+    paintMobileLookPreviews();
+    renderPreview({ lookChanged: true });
   }
 
   function updatePresetSelection() {
     for (const card of dom.presetGrid.querySelectorAll(".preset-card")) {
+      card.classList.toggle("active", card.dataset.presetId === state.selectedPresetId);
+    }
+    for (const card of dom.mobileLookRail?.querySelectorAll(".mobile-look-card") || []) {
       card.classList.toggle("active", card.dataset.presetId === state.selectedPresetId);
     }
   }
@@ -2406,7 +2985,9 @@
 
     state.activeId = id;
     state.selectedPresetId = item.presetId;
+    state.lastPresetId = item.presetId;
     updateInterface();
+    paintMobileLookPreviews();
     renderPreview();
 
     if (options.scroll !== false) {
@@ -2437,7 +3018,7 @@
 
     updateInterface();
     renderPreview();
-    showToast(`已从片卷移除《${removed.name}》。`);
+    showToast(t("toast.removed", { name: removed.name }));
   }
 
   function applyCurrentLookToAll() {
@@ -2448,12 +3029,51 @@
     }
     renderFilmstrip();
     const preset = getPreset(state.selectedPresetId);
-    showToast(`已把「${preset.name}」套到 ${state.items.length} 张照片。`, "good");
+    paintMobileLookPreviews();
+    updateInterface();
+    setStageDepth(1);
+    if (window.matchMedia("(max-width: 790px)").matches) {
+      dom.dropZone.classList.add("is-applied");
+      window.setTimeout(() => dom.dropZone.classList.remove("is-applied"), 900);
+    }
+    showToast(
+      t("toast.applied", {
+        preset: presetName(preset),
+        count: state.items.length,
+      }),
+      "good",
+    );
   }
 
-  function renderPreview() {
+  function setStageDepth(depth) {
+    dom.dropZone.classList.remove("stage-depth-0", "stage-depth-1", "stage-depth-2");
+    dom.dropZone.classList.add(`stage-depth-${depth}`);
+    if (dom.previewWrap && !dom.previewWrap.hidden) {
+      schedulePreviewFit();
+    }
+  }
+
+  function cueExportCard() {
+    const exportCard = document.querySelector(".export-card");
+    if (!exportCard) return;
+    if (window.matchMedia("(max-width: 790px)").matches) {
+      exportCard.scrollIntoView({ behavior: "smooth", block: "start" });
+    } else {
+      dom.controlsPanel?.scrollTo({ top: exportCard.offsetTop - 20, behavior: "smooth" });
+    }
+    exportCard.classList.add("is-cued");
+    window.setTimeout(() => exportCard.classList.remove("is-cued"), 1700);
+  }
+
+  function activeLookAppliesToAll() {
+    const preset = getPreset(state.selectedPresetId);
+    return state.items.length > 0 && state.items.every((item) => item.presetId === preset.id);
+  }
+
+  function renderPreview(options = {}) {
     const item = getActiveItem();
     const preset = getPreset(state.selectedPresetId);
+    paintMobileLookPreviews();
 
     if (!item) {
       dom.emptyState.hidden = false;
@@ -2481,7 +3101,13 @@
       { width, height },
     );
 
-    dom.previewLookLabel.textContent = `调色后 · ${preset.name}`;
+    dom.previewLookLabel.textContent = `${t("preview.afterLabel")} · ${presetName(preset)}`;
+    if (options.lookChanged) {
+      dom.stage.classList.remove("is-new-look");
+      void dom.stage.offsetWidth;
+      dom.stage.classList.add("is-new-look");
+    }
+    lastPreviewLookId = preset.id;
     updateLookReadout();
     fitPreviewFrame();
   }
@@ -2490,14 +3116,13 @@
     const item = getActiveItem();
     if (!item || dom.previewWrap.hidden) return;
 
-    const stage = dom.stage;
-    const style = getComputedStyle(stage);
-    const paddingX =
-      parseFloat(style.paddingLeft || "0") + parseFloat(style.paddingRight || "0");
-    const paddingY =
-      parseFloat(style.paddingTop || "0") + parseFloat(style.paddingBottom || "0");
-    const availableWidth = Math.max(80, stage.clientWidth - paddingX);
-    const availableHeight = Math.max(80, stage.clientHeight - paddingY);
+    // While the photo still has a temporary size (the import animation), use
+    // its unchanged frame. Reading the shrinking box would scale the photo down
+    // a little more on every pass.
+    const box = dom.previewWrap.getBoundingClientRect();
+    const availableWidth = Math.max(80, Math.floor(box.width));
+    const availableHeight = Math.max(80, Math.floor(box.height));
+    if (!availableWidth || !availableHeight) return;
     const ratio = item.width / item.height;
     let width;
     let height;
@@ -2521,6 +3146,17 @@
   }
 
   function renderFilmstrip() {
+    const signature = [
+      i18n.language,
+      state.activeId,
+      state.items.length,
+      ...state.items.map((item) => `${item.id}:${item.presetId}`),
+    ].join("|");
+    if (signature === lastFilmstripSignature && dom.filmstrip.children.length > 0) {
+      updateFilmstripSelection();
+      return;
+    }
+    lastFilmstripSignature = signature;
     dom.filmstrip.replaceChildren();
 
     if (state.items.length === 0) {
@@ -2529,8 +3165,8 @@
       empty.className = "filmstrip-empty";
       empty.innerHTML = `
         <span class="filmstrip-sprocket" aria-hidden="true"></span>
-        <span>这里会排好你的整条片卷</span>
-        <strong>先放几张照片进来</strong>
+        <span>${escapeHtml(t("film.empty"))}</span>
+        <strong>${escapeHtml(t("film.emptyCta"))}</strong>
       `;
       empty.addEventListener("click", () => {
         dom.fileInput.value = "";
@@ -2548,7 +3184,14 @@
       frame.dataset.filmId = item.id;
       frame.tabIndex = 0;
       frame.setAttribute("role", "button");
-      frame.setAttribute("aria-label", `选择 ${item.name}，当前风格 ${brand.name} ${preset.name}`);
+      frame.setAttribute(
+        "aria-label",
+        t("film.select", {
+          name: item.name,
+          brand: i18n.brandName(preset.brand),
+          preset: presetName(preset),
+        }),
+      );
       frame.classList.toggle("active", item.id === state.activeId);
 
       const thumbWrap = document.createElement("div");
@@ -2567,7 +3210,7 @@
       const remove = document.createElement("button");
       remove.type = "button";
       remove.className = "film-remove";
-      remove.setAttribute("aria-label", `移除 ${item.name}`);
+      remove.setAttribute("aria-label", t("film.remove", { name: item.name }));
       remove.textContent = "×";
       remove.addEventListener("click", (event) => {
         event.stopPropagation();
@@ -2576,7 +3219,7 @@
 
       const meta = document.createElement("div");
       meta.className = "film-meta";
-      meta.innerHTML = `<strong>${escapeHtml(shortName(item.name))}</strong><span>${brand.name} · ${preset.name}</span>`;
+      meta.innerHTML = `<strong>${escapeHtml(shortName(item.name))}</strong><span>${escapeHtml(i18n.brandName(preset.brand))} · ${escapeHtml(presetName(preset))}</span>`;
 
       thumbWrap.append(image, indexLabel, remove);
       frame.append(thumbWrap, meta);
@@ -2592,26 +3235,33 @@
     });
   }
 
+  function updateFilmstripSelection() {
+    for (const frame of dom.filmstrip.querySelectorAll(".film-item")) {
+      frame.classList.toggle("active", frame.dataset.filmId === state.activeId);
+    }
+  }
+
   function updateLookReadout() {
     const preset = getPreset(state.selectedPresetId);
-    const brand = BRANDS[preset.brand];
     const index = String(PRESETS.indexOf(preset) + 1).padStart(2, "0");
+    const name = presetName(preset);
+    const brandFull = i18n.brandName(preset.brand, true);
 
-    dom.readoutSeal.textContent = brand.letter;
-    dom.readoutBrand.textContent = `${brand.name} · ${brand.en}`;
-    dom.readoutName.textContent = preset.name;
-    dom.lookCardBrand.textContent = `${brand.name} · ${brand.en}`;
-    dom.lookCardName.textContent = preset.name;
-    dom.lookCardTagline.textContent = preset.tagline;
+    dom.readoutSeal.textContent = BRANDS[preset.brand].letter;
+    dom.readoutBrand.textContent = `${brandFull} · ${BRANDS[preset.brand].en}`;
+    dom.readoutName.textContent = name;
+    dom.lookCardBrand.textContent = `${brandFull} · ${BRANDS[preset.brand].en}`;
+    dom.lookCardName.textContent = name;
+    dom.lookCardTagline.textContent = presetTagline(preset);
     dom.lookCardIndex.textContent = index;
-    dom.lookSwatch.textContent = brand.letter;
+    dom.lookSwatch.textContent = BRANDS[preset.brand].letter;
     dom.lookSwatch.style.setProperty("--swatch", preset.swatch);
-    dom.lookBasisBadge.textContent = preset.basis;
+    dom.lookBasisBadge.textContent = presetBasis(preset);
     dom.lookBasisBadge.classList.toggle("is-official", preset.basis === "官方取向");
     dom.lookBasisBadge.classList.toggle("is-community", preset.basis === "民间取向");
-    dom.lookSourceName.textContent = preset.sourceName;
-    dom.lookNotes.textContent = preset.notes;
-    dom.previewLookLabel.textContent = `调色后 · ${preset.name}`;
+    dom.lookSourceName.textContent = presetSource(preset);
+    dom.lookNotes.textContent = presetNotes(preset);
+    dom.previewLookLabel.textContent = `${t("preview.afterLabel")} · ${name}`;
   }
 
   function updateInterface() {
@@ -2626,7 +3276,7 @@
       dom.emptyState.hidden = true;
       dom.previewWrap.hidden = false;
     } else {
-      dom.currentFilename.textContent = "等待照片";
+      dom.currentFilename.textContent = t("stage.waiting");
       dom.currentDimension.textContent = "JPG · PNG · WebP";
       dom.photoCounter.textContent = `00 / ${String(count).padStart(2, "0")}`;
       dom.emptyState.hidden = false;
@@ -2635,21 +3285,56 @@
 
     dom.prevPhoto.disabled = count < 2;
     dom.nextPhoto.disabled = count < 2;
-    dom.controlCount.textContent = `${count} 张`;
+    const preset = getPreset(active?.presetId || state.selectedPresetId);
+    const appliedToAll = count > 0 && state.items.every((item) => item.presetId === preset.id);
+    dom.applyAll?.classList.toggle("is-applied", appliedToAll);
+    if (dom.readoutApplyState) {
+      dom.readoutApplyState.textContent = t(appliedToAll ? "sync.allSet" : "sync.thisOne");
+      dom.readoutApplyState.classList.toggle("is-all", appliedToAll);
+    }
+    if (dom.applyAll) {
+      const label = dom.applyAll.querySelector("[data-i18n='sync.apply']");
+      if (label) label.textContent = t(appliedToAll ? "sync.alreadyAll" : "sync.apply");
+    }
+    const mobileApply = document.getElementById("mobileApplyAll");
+    const mobileApplyLabel = document.getElementById("mobileApplyAllLabel");
+    const mobileApplyCount = document.getElementById("mobileApplyAllCount");
+    const mobileScope = document.getElementById("mobileScope");
+    if (mobileApply) {
+      mobileApply.disabled = count === 0 || state.exporting || appliedToAll;
+      mobileApply.classList.toggle("is-applied", appliedToAll);
+    }
+    if (mobileApplyLabel) mobileApplyLabel.textContent = t(appliedToAll ? "sync.alreadyAll" : "sync.apply");
+    if (mobileApplyCount) mobileApplyCount.textContent = String(count);
+    if (mobileScope) {
+      mobileScope.textContent = t(appliedToAll ? "sync.allSet" : "sync.thisOne");
+      mobileScope.classList.toggle("is-all", appliedToAll);
+    }
+    const exportOneButton = document.getElementById("mobileExportOne");
+    const exportAllButton = document.getElementById("mobileExportAll");
+    const exportCount = document.getElementById("mobileExportCount");
+    if (exportOneButton) exportOneButton.disabled = count === 0 || state.exporting;
+    if (exportAllButton) exportAllButton.disabled = count === 0 || state.exporting;
+    if (exportCount) exportCount.textContent = String(count);
+    const rollCount = document.getElementById("mobileRollCount");
+    if (rollCount) rollCount.textContent = String(count);
+    dom.controlCount.textContent = t("count.photos", { count });
     dom.filmstripCount.textContent = String(count).padStart(2, "0");
     dom.applyAll.disabled = count === 0 || state.exporting;
     dom.applyAllCount.textContent = `${count}`;
     dom.exportAll.disabled = count === 0 || state.exporting;
     dom.exportTop.disabled = state.exporting;
     dom.exportOne.disabled = count === 0 || state.exporting;
-    dom.exportButtonCount.textContent = `${count} 张`;
+    dom.exportButtonCount.textContent = t("count.sheet", { count });
     dom.fourLookExport.disabled = count === 0 || state.exporting;
-    dom.fourLookCount.textContent = `${count} 张照片 → ${count * 4} 个版本`;
+    dom.fourLookCount.textContent = t("four.count", { photos: count, versions: count * 4 });
 
     dom.outputEstimate.textContent =
       count === 0
-        ? "尚未选片"
-        : `${count} 张 · ${state.size === "original" ? "原始尺寸" : `长边 ${state.size}px`}`;
+        ? t("output.none")
+        : state.size === "original"
+          ? t("output.estimateOriginal", { count })
+          : t("output.estimate", { count, size: state.size });
 
     dom.sizeSelect.value = state.size;
     dom.formatSelect.value = state.format;
@@ -2667,8 +3352,12 @@
   function syncControls() {
     dom.strengthSlider.value = String(Math.round(state.strength * 100));
     dom.strengthValue.textContent = `${Math.round(state.strength * 100)}%`;
+    dom.stageStrength.value = dom.strengthSlider.value;
+    dom.stageStrengthValue.textContent = dom.strengthValue.textContent;
     dom.grainSlider.value = String(Math.round(state.grain * 100));
     dom.grainValue.textContent = grainLabel(Math.round(state.grain * 100));
+    dom.stageGrain.value = dom.grainSlider.value;
+    dom.stageGrainValue.textContent = dom.grainValue.textContent;
     syncRecommendation();
     dom.qualitySlider.value = String(state.quality);
     dom.qualityValue.textContent = String(state.quality);
@@ -2677,6 +3366,8 @@
     dom.qualityRow.hidden = state.format !== "jpeg";
     paintRange(dom.strengthSlider);
     paintRange(dom.grainSlider);
+    paintRange(dom.stageStrength);
+    paintRange(dom.stageGrain);
     paintRange(dom.qualitySlider);
     setSplit(state.split);
   }
@@ -2685,12 +3376,14 @@
     const recommended =
       Math.abs(state.strength - RECOMMENDED_LOOK.strength) < 0.005 &&
       Math.abs(state.grain - RECOMMENDED_LOOK.grain) < 0.005;
-    dom.recommendNote.textContent = recommended
-      ? "推荐值：强度 100%，品牌味已完整；颗粒 100%，细腻可见。大多数照片用它就好。"
-      : "已微调。强度一般 100–115% 足够；颗粒 80–115% 最自然，太高会像加了噪点。";
-    dom.recommendReset.textContent = recommended ? "已在推荐值" : "回到推荐值";
+    dom.recommendNote.textContent = recommended ? t("slider.recommendedNote") : t("slider.tunedNote");
+    dom.recommendReset.textContent = recommended ? t("slider.atRecommended") : t("slider.reset");
     dom.recommendReset.disabled = recommended;
     dom.recommendReset.classList.toggle("is-recommended", recommended);
+    const atStrength = Math.abs(state.strength - RECOMMENDED_LOOK.strength) < 0.005;
+    const atGrain = Math.abs(state.grain - RECOMMENDED_LOOK.grain) < 0.005;
+    document.querySelector("#strengthValue + .slider-star")?.classList.toggle("is-off", !atStrength);
+    document.querySelector("#grainValue + .slider-star")?.classList.toggle("is-off", !atGrain);
   }
 
   function paintRange(input) {
@@ -2727,8 +3420,8 @@
     const usedNames = new Set();
 
     showProcessing(
-      mode === "four" ? "四种气质，一起冲印" : isArchive ? "整条片卷，一起冲印" : "正在冲印这一张",
-      `共 ${tasks.length} 个版本 · 照片只在你的电脑上处理`,
+      t(mode === "four" ? "processing.fourTitle" : isArchive ? "processing.archiveTitle" : "processing.oneTitle"),
+      t("processing.detail", { count: tasks.length }),
     );
 
     for (let index = 0; index < tasks.length; index += 1) {
@@ -2739,7 +3432,7 @@
       const percent = Math.round((index / tasks.length) * 100);
       updateProgress(
         percent,
-        `第 ${index + 1} / ${tasks.length} 张 · ${preset.name}`,
+        t("processing.progress", { index: index + 1, total: tasks.length, preset: presetName(preset) }),
       );
 
       try {
@@ -2795,7 +3488,7 @@
 
       updateProgress(
         Math.round(((index + 1) / tasks.length) * 100),
-        `第 ${index + 1} / ${tasks.length} 张 · ${preset.name}`,
+        t("processing.progress", { index: index + 1, total: tasks.length, preset: presetName(preset) }),
       );
 
       if (index % 2 === 1) await nextFrame();
@@ -2804,10 +3497,12 @@
     let completed = false;
 
     if (isArchive && zipEntries.length > 0) {
-      updateProgress(100, "正在封装 ZIP…");
+      updateProgress(100, t("processing.zip"));
       const zipBlob = createZip(zipEntries);
       const date = formatDateStamp(new Date());
-      const zipName = `银盐调色台_${date}_${zipEntries.length}张${state.cancelRequested ? "_已完成部分" : ""}.zip`;
+      const zipName = isEnglish()
+        ? `silver-lab_${date}_${zipEntries.length}photos${state.cancelRequested ? "_partial" : ""}.zip`
+        : `银盐调色台_${date}_${zipEntries.length}张${state.cancelRequested ? "_已完成部分" : ""}.zip`;
       const url = URL.createObjectURL(zipBlob);
       const download = {
         url,
@@ -2818,14 +3513,14 @@
       replaceLastDownload(download);
       if (!state.cancelRequested) triggerDownload(url, zipName);
       dom.downloadReady.hidden = false;
-      dom.downloadReadyTitle.textContent = state.cancelRequested ? "已完成部分可保存" : "冲印完成";
-      dom.downloadReadyDetail.textContent = `${zipEntries.length} 张 · ${formatBytes(zipBlob.size)}`;
+      dom.downloadReadyTitle.textContent = t(state.cancelRequested ? "download.partial" : "download.done");
+      dom.downloadReadyDetail.textContent = t("download.count", { count: zipEntries.length, size: formatBytes(zipBlob.size) });
       completed = !state.cancelRequested;
     } else if (!state.cancelRequested && !isArchive && failures.length === 0) {
       dom.downloadReady.hidden = false;
-      dom.downloadReadyTitle.textContent = "这一张已出片";
+      dom.downloadReadyTitle.textContent = t("download.one");
       dom.downloadReadyDetail.textContent =
-        state.lastDownload ? formatBytes(state.lastDownload.size) : "文件已下载";
+        state.lastDownload ? formatBytes(state.lastDownload.size) : t("download.file");
       completed = true;
     }
 
@@ -2836,56 +3531,47 @@
     if (state.cancelRequested) {
       showToast(
         zipEntries.length > 0
-          ? `已停下，已经完成的 ${zipEntries.length} 个版本已打好包，可从右侧保存。`
-          : "已取消这次冲印。",
+          ? t("toast.partial", { count: zipEntries.length })
+          : t("toast.cancelled"),
       );
     } else if (failures.length > 0) {
       showToast(
-        `${failures.length} 张未能导出：${failures.slice(0, 2).join("、")}${failures.length > 2 ? "…" : ""}`,
+        t("toast.failures", {
+          count: failures.length,
+          names: `${failures.slice(0, 2).join("、")}${failures.length > 2 ? "…" : ""}`,
+        }),
         "error",
         7000,
       );
     } else if (completed) {
       showToast(
-        isArchive ? `已打包 ${zipEntries.length} 个版本。` : "这一张已经出片。",
+        isArchive ? t("toast.packed", { count: zipEntries.length }) : t("toast.exportedOne"),
         "good",
       );
     }
   }
 
   // A one-time walkthrough anchored to the real controls. No permanent layout is added.
-  const GUIDE_STEPS = [
-    {
-      target: () => dom.stage,
-      title: "照片先进暗房",
-      body: "把照片拖进来，或点「选择照片」。一次可以选多张；处理全程只在这台设备上，原片不会被改动。",
-      next: "选好照片",
-    },
-    {
-      target: () => dom.presetGrid,
-      title: "向下点一张气质",
-      body: "在左侧按哈苏、徕卡、理光、富士筛选，再点一张。它会立刻套到当前照片，下面片卷里的缩略图也会同步更新。",
-      next: "知道了",
-    },
-    {
-      target: () => [dom.strengthSlider, dom.grainSlider],
-      title: "先用推荐值",
-      body: "强度 100% / 颗粒 100% 是设计好的标准，不需要每次重新调。想更浓可以加到 115% 左右；颗粒一般不超过 115%。",
-      next: "知道了",
-    },
-    {
-      target: () => dom.applyAll,
-      title: "满意了，再套到全部",
-      body: "点「把当前风格套到全部」把当前风格同步到整条片卷，右侧小数字就是张数。只改单张时，直接点下方片卷切换即可。",
-      next: "知道了",
-    },
-    {
-      target: () => dom.fourLookExport.closest(".four-look-card") || dom.fourLookExport,
-      title: "两种出片，说清楚再选",
-      body: "「四风格批量导出」：每张照片同时冲出哈苏、徕卡、理光、富士共 4 版；再往下的深色「出片」区，则按每张当前选的风格打包。",
-      next: "开始用",
-    },
-  ];
+  function getGuideSteps() {
+    const targets = {
+      stage: () => {
+        const dock = dom.mobileLookDock?.getClientRects().length ? dom.mobileLookDock : null;
+        const stageCard = dom.dropZone;
+        if (!dock || window.innerWidth > 790) return [stageCard];
+        return [stageCard, dock];
+      },
+      presetGrid: () =>
+        dom.mobileLookDock?.getClientRects().length ? dom.mobileLookDock : dom.presetGrid,
+      sliders: () => [dom.strengthSlider, dom.grainSlider],
+      applyAll: () => dom.applyAll,
+      fourLook: () => dom.fourLookExport.closest(".four-look-card") || dom.fourLookExport,
+    };
+    return t("guide.steps").map((step, index) => ({
+      ...step,
+      target: () => (typeof step.target === "string" ? targets[step.target]() : targets.stage()),
+      index,
+    }));
+  }
 
   const guide = {
     root: null,
@@ -2896,18 +3582,10 @@
     welcome: null,
   };
 
-  function prepareGuide() {
+  function prepareGuide({ quiet = false } = {}) {
     buildGuideLayer();
     document.body.classList.add("guide-ready");
-    let seen = false;
-    try {
-      seen = localStorage.getItem(GUIDE_SEEN_KEY) === "1";
-    } catch {
-      seen = false;
-    }
-    if (!seen) {
-      openWelcome();
-    }
+    if (!readGuideSeen() && !quiet) openWelcome();
   }
 
   function buildGuideLayer() {
@@ -2925,17 +3603,22 @@
     popover.innerHTML = `
       <header>
         <span class="ui-guide-index"></span>
-        <button class="ui-guide-skip" type="button">跳过引导</button>
+        <button class="ui-guide-skip" type="button"></button>
       </header>
       <h3></h3>
       <p></p>
       <footer>
         <span class="ui-guide-dots" aria-hidden="true"></span>
-        <button class="ui-guide-next" type="button">下一步</button>
+        <button class="ui-guide-next" type="button"></button>
       </footer>
     `;
-    popover.querySelector(".ui-guide-skip").addEventListener("click", finishGuide);
-    popover.querySelector(".ui-guide-next").addEventListener("click", () => nextGuideStep());
+    popover.addEventListener("click", (event) => {
+      if (event.target.closest(".ui-guide-skip")) {
+        finishGuide();
+      } else if (event.target.closest(".ui-guide-next")) {
+        nextGuideStep();
+      }
+    });
     root.append(marker, popover);
     document.body.append(root);
     guide.root = root;
@@ -2943,25 +3626,66 @@
     guide.popover = popover;
   }
 
+  function renderWelcomeCopy() {
+    if (!guide.welcome) return;
+    const section = guide.welcome.querySelector(".guide-welcome");
+    const list = guide.welcome.querySelector("ol");
+    section.querySelector(".eyebrow").textContent = t("guide.welcomeEyebrow");
+    section.querySelector("h2").innerHTML = t("guide.welcomeTitleHtml");
+    section.querySelector("p").textContent = t("guide.welcomeCopy");
+    list.innerHTML = [1, 2, 3]
+      .map(
+        (n) => `<li><b>${n}</b><div><strong>${t(`guide.step${n}Title`)}</strong><span>${t(`guide.step${n}Body`)}</span></div></li>`,
+      )
+      .join("");
+    section.querySelector("#guideStart").textContent = t("guide.start");
+    section.querySelector("#guideSkip").textContent = t("guide.done");
+  }
+
   function openWelcome() {
+    closeWelcome();
     const backdrop = document.createElement("div");
     backdrop.className = "guide-welcome-backdrop";
     backdrop.innerHTML = `
       <section class="guide-welcome" role="dialog" aria-modal="true" aria-labelledby="guideWelcomeTitle">
-        <span class="eyebrow">FIRST LOOK / 第一次用</span>
-        <h2 id="guideWelcomeTitle">三步，给照片<br />换一套光。</h2>
-        <p>不用学软件，只要选照片、点气质、导出。颜色只在这台设备上处理。</p>
-        <ol>
-          <li><b>1</b><div><strong>选照片</strong><span>一次多选也没关系，缩略图会在下方排成片卷。</span></div></li>
-          <li><b>2</b><div><strong>挑气质</strong><span>点左侧任意一张，当前照片立刻换色，随时可改。</span></div></li>
-          <li><b>3</b><div><strong>再用推荐值</strong><span>强度、颗粒都用 100%；「套到全部」后才整卷导出。</span></div></li>
-        </ol>
-        <div class="guide-welcome-actions">
-          <button class="button button-ink" id="guideStart" type="button">看一遍页面指引</button>
-          <button class="text-button" id="guideSkip" type="button">我已会了，直接开始</button>
+        <div class="welcome-rail" aria-hidden="true">
+          <div class="welcome-rail-top">
+            <span class="welcome-rail-mark">
+              <svg viewBox="0 0 44 44">
+                <rect x="3.5" y="11" width="37" height="24" fill="none" stroke="currentColor" />
+                <path d="M10 11v24M15 11v3.5M20 11v3.5M25 11v3.5M30 11v3.5M35 11v24" fill="none" stroke="currentColor" />
+                <circle cx="23" cy="23" r="6.2" fill="none" stroke="currentColor" />
+                <circle cx="23" cy="23" r="2.2" fill="currentColor" />
+              </svg>
+            </span>
+            <span class="welcome-rail-caption">Silver Lab<br />Grain · Light · Time</span>
+          </div>
+          <div class="welcome-rail-bottom">
+            <span>No. 01</span>
+            <i></i>
+            <span class="welcome-rail-seal"><span>银</span></span>
+          </div>
+        </div>
+        <div class="guide-welcome-body">
+          <span class="eyebrow"></span>
+          <h2 id="guideWelcomeTitle"></h2>
+          <p></p>
+          <ol></ol>
+          <div class="guide-welcome-actions">
+            <button class="button button-ink" id="guideStart" type="button"></button>
+            <button class="text-button" id="guideSkip" type="button"></button>
+          </div>
         </div>
       </section>
     `;
+    document.body.append(backdrop);
+    guide.welcome = backdrop;
+    try {
+      sessionStorage.setItem(GUIDE_WELCOMED_KEY, "1");
+    } catch {
+      // The welcome still works for this page view without session storage.
+    }
+    renderWelcomeCopy();
     backdrop.querySelector("#guideStart").addEventListener("click", () => {
       closeWelcome();
       setTimeout(() => openGuideStep(0), 120);
@@ -2973,13 +3697,18 @@
     backdrop.addEventListener("click", (event) => {
       if (event.target === backdrop) closeWelcome();
     });
-    backdrop.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") closeWelcome();
-    });
     document.addEventListener("keydown", handleGuideKeydown);
-    document.body.append(backdrop);
-    guide.welcome = backdrop;
     backdrop.querySelector("#guideStart").focus({ preventScroll: true });
+  }
+
+  function refreshWelcomeCopy() {
+    renderWelcomeCopy();
+  }
+
+  function refreshGuideCopy() {
+    if (!guide.active) return;
+    paintGuideCopy();
+    placeGuide();
   }
 
   function closeWelcome() {
@@ -3000,20 +3729,19 @@
   }
 
   function openGuideStep(index) {
-    guide.step = clamp(index, 0, GUIDE_STEPS.length - 1);
+    guide.step = clamp(index, 0, getGuideSteps().length - 1);
     guide.active = true;
     guide.root.hidden = false;
     closeWelcome();
     document.addEventListener("keydown", handleGuideKeydown);
     placeGuide();
-    guide.popover.scrollIntoView({ block: "nearest" });
     requestAnimationFrame(placeGuide);
     guide.popover.querySelector(".ui-guide-next").focus({ preventScroll: true });
   }
 
   function nextGuideStep() {
     if (!guide.active) return;
-    if (guide.step >= GUIDE_STEPS.length - 1) {
+    if (guide.step >= getGuideSteps().length - 1) {
       finishGuide();
       return;
     }
@@ -3023,27 +3751,68 @@
   function finishGuide() {
     guide.active = false;
     if (guide.root) guide.root.hidden = true;
+    document.querySelector(".controls-panel")?.classList.remove("is-open");
     closeWelcome();
     document.removeEventListener("keydown", handleGuideKeydown);
-    try {
-      localStorage.setItem(GUIDE_SEEN_KEY, "1");
-    } catch {
-      // A browser with storage disabled simply sees the guide again next time.
-    }
+    markGuideSeen();
     refreshAllThumbnails();
+  }
+
+  function paintGuideCopy() {
+    const steps = getGuideSteps();
+    const current = steps[guide.step];
+    guide.popover.querySelector(".ui-guide-index").textContent = `${String(guide.step + 1).padStart(2, "0")} / ${String(steps.length).padStart(2, "0")}`;
+    guide.popover.querySelector(".ui-guide-skip").textContent = t("guide.skip");
+    guide.popover.querySelector("h3").textContent = current.title;
+    guide.popover.querySelector("p").textContent = current.body;
+    guide.popover.querySelector(".ui-guide-dots").innerHTML = steps
+      .map((_, index) => `<i class="${index === guide.step ? "on" : ""}"></i>`)
+      .join("");
+    guide.popover.querySelector(".ui-guide-next").textContent = current.next || t("guide.next");
+  }
+
+  function guideAnchor() {
+    const steps = getGuideSteps();
+    const raw = steps[guide.step].target();
+    return (Array.isArray(raw) ? raw : [raw]).filter(
+      (target) => target && target.getClientRects().length,
+    );
+  }
+
+  function revealGuideTarget(targets) {
+    const controls = targets[0].closest?.(".controls-panel");
+    if (controls && window.matchMedia("(max-width: 790px)").matches) {
+      controls.classList.add("is-open");
+      controls.scrollTo({ top: 0 });
+      const row = targets[0].closest?.(".slider-row");
+      if (row) {
+        const intro = controls.querySelector(".controls-intro");
+        const offset = intro ? intro.getBoundingClientRect().height : 0;
+        const rowTop = row.getBoundingClientRect().top - controls.getBoundingClientRect().top;
+        controls.scrollTop = Math.max(0, rowTop - offset - 12);
+      }
+      return;
+    }
+    const row = targets[0].closest?.(".slider-row");
+    if (!row) return;
+    const scroller = row.closest(".preset-grid, .controls-panel");
+    if (!scroller) return;
+    const rowBox = row.getBoundingClientRect();
+    const scrollBox = scroller.getBoundingClientRect();
+    if (rowBox.top < scrollBox.top || rowBox.bottom > scrollBox.bottom) {
+      scroller.scrollTop += rowBox.top - scrollBox.top - 10;
+    }
   }
 
   function placeGuide() {
     if (!guide.active || !guide.root || guide.root.hidden) return;
-    const current = GUIDE_STEPS[guide.step];
-    const raw = current.target();
-    const targets = (Array.isArray(raw) ? raw : [raw]).filter((target) => target && target.getClientRects().length);
+    const targets = guideAnchor();
     if (targets.length === 0) {
       finishGuide();
       return;
     }
-    // On phones the layout is vertical: bring the highlighted control into view first.
 
+    revealGuideTarget(targets);
     const rects = targets.map((target) => target.getBoundingClientRect());
     const left = Math.min(...rects.map((rect) => rect.left));
     const top = Math.min(...rects.map((rect) => rect.top));
@@ -3055,21 +3824,32 @@
     marker.style.width = `${right - left + 10}px`;
     marker.style.height = `${bottom - top + 10}px`;
 
-    guide.popover.querySelector(".ui-guide-index").textContent = `${String(guide.step + 1).padStart(2, "0")} / ${String(GUIDE_STEPS.length).padStart(2, "0")}`;
-    guide.popover.querySelector("h3").textContent = current.title;
-    guide.popover.querySelector("p").textContent = current.body;
-    guide.popover.querySelector(".ui-guide-dots").innerHTML = GUIDE_STEPS.map((_, index) => `<i class="${index === guide.step ? "on" : ""}"></i>`).join("");
-    guide.popover.querySelector(".ui-guide-next").textContent = current.next || "下一步";
+    paintGuideCopy();
 
     const width = guide.popover.offsetWidth;
     const height = guide.popover.offsetHeight;
     const margin = 12;
-    const anchor = targets[targets.length - 1].getBoundingClientRect();
-    let popLeft = anchor.right + 16;
-    let popTop = anchor.top;
-    if (popLeft + width > window.innerWidth - margin) popLeft = anchor.left - width - 16;
-    if (popLeft < margin) popLeft = clamp(anchor.left, margin, window.innerWidth - width - margin);
-    popTop = clamp(popTop, margin, window.innerHeight - height - margin);
+    const anchorRect = { left, top, right, bottom };
+    const isCompact = window.innerWidth <= 790;
+    let popLeft;
+    let popTop;
+    if (isCompact) {
+      popLeft = margin;
+      popTop = anchorRect.bottom + 10;
+      if (popTop + height > window.innerHeight - margin) {
+        popTop = Math.max(margin, anchorRect.top - height - 10);
+      }
+    } else {
+      popLeft = anchorRect.right + 16;
+      popTop = anchorRect.top;
+      if (popLeft + width > window.innerWidth - margin) {
+        popLeft = anchorRect.left - width - 16;
+      }
+      if (popLeft < margin) {
+        popLeft = clamp(anchorRect.left, margin, window.innerWidth - width - margin);
+      }
+      popTop = clamp(popTop, margin, window.innerHeight - height - margin);
+    }
     guide.popover.style.left = `${popLeft}px`;
     guide.popover.style.top = `${popTop}px`;
   }
@@ -3119,7 +3899,7 @@
       .replace(/[\\/:*?"<>|]/g, "-")
       .replace(/\s+/g, "-")
       .slice(0, 80);
-    return `${base}_${brand.name}-${preset.name}.${extension}`;
+    return `${base}_${i18n.brandName(preset.brand, isEnglish())}-${presetName(preset)}.${extension}`;
   }
 
   function uniqueFilename(filename, used) {
@@ -3310,12 +4090,12 @@
 
   function grainLabel(value) {
     const number = Number(value);
-    if (number === 0) return "无";
-    if (number <= 35) return "轻";
-    if (number <= 80) return "细腻";
-    if (number <= 115) return "标准";
-    if (number <= 140) return "明显";
-    return "老胶片";
+    if (number === 0) return t("grain.none");
+    if (number <= 35) return t("grain.light");
+    if (number <= 80) return t("grain.fine");
+    if (number <= 115) return t("grain.standard");
+    if (number <= 140) return t("grain.visible");
+    return t("grain.oldFilm");
   }
 
   function shortName(name) {
@@ -3365,5 +4145,5 @@
     return new Promise((resolve) => requestAnimationFrame(resolve));
   }
 
-  init();
+  boot();
 })();
