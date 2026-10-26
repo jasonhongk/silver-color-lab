@@ -1556,6 +1556,9 @@
     strength: 1,
     grain: 1,
     split: 68,
+    zoom: 1,
+    zoomPan: { x: 0, y: 0 },
+    previewBase: { width: 0, height: 0 },
     size: "4096",
     format: "jpeg",
     quality: 94,
@@ -1566,9 +1569,13 @@
   };
 
   const dom = {};
+  dom.root = document.documentElement;
   let previewRenderer;
   let thumbRenderer;
   let exportRenderer;
+
+  // One shared mobile check: zoom, pan and the rail all ask the same question.
+  const mobileQuery = window.matchMedia("(max-width: 790px)");
   let fileSequence = 0;
   let toastSequence = 0;
   let previewFitFrame = 0;
@@ -2024,6 +2031,13 @@
       "emptyState",
       "emptyAdd",
       "previewWrap",
+      "previewZoom",
+      "previewZoomLayer",
+      "zoomDock",
+      "zoomOut",
+      "zoomFit",
+      "zoomIn",
+      "zoomValue",
       "beforeCanvas",
       "afterCanvas",
       "previewLookLabel",
@@ -2279,9 +2293,52 @@
       setSplit(Number(event.target.value));
     });
 
+    // The invisible split slider covers the whole print, so it swallows the
+    // wheel before the zoom layer can see it. Forward it, or the hint on the
+    // rail promises something the page never does.
+    dom.splitRange.addEventListener(
+      "wheel",
+      (event) => {
+        if (mobileQuery.matches) return;
+        event.preventDefault();
+        zoomStep(event.deltaY < 0 ? 1 : -1, event.clientX, event.clientY);
+      },
+      { passive: false },
+    );
+
+    // Same story for gestures. The invisible split slider covers the whole
+    // print, so it swallows every pointer event: without this relay the
+    // desktop drag-to-pan and the phone pinch-to-zoom never fire at all.
+    // The slider keeps its own job of moving the split line with one finger.
+    const relayToZoomLayer = (event) => {
+      // Two fingers mean zoom. A single finger still belongs to the split
+      // line unless the print is already magnified and being panned.
+      if (event.pointerType === "touch" && event.isPrimary === false) {
+        event.preventDefault();
+      }
+      dom.previewZoomLayer.dispatchEvent(
+        new PointerEvent(event.type, {
+          bubbles: true,
+          cancelable: true,
+          pointerId: event.pointerId,
+          pointerType: event.pointerType,
+          clientX: event.clientX,
+          clientY: event.clientY,
+          button: event.button,
+          buttons: event.buttons,
+          isPrimary: event.isPrimary,
+        }),
+      );
+    };
+    for (const type of ["pointerdown", "pointermove", "pointerup", "pointercancel"]) {
+      dom.splitRange.addEventListener(type, relayToZoomLayer);
+    }
+
+    bindZoomControls();
+
     dom.previewWrap.addEventListener("click", (event) => {
       if (!window.matchMedia("(max-width: 790px)").matches) return;
-      if (event.target.closest(".split-range, .split-handle")) return;
+      if (event.target.closest(".split-range, .split-handle, .zoom-dock")) return;
       setStageDepth(0);
       dom.mobileLookRail?.scrollIntoView({ behavior: "smooth", block: "nearest" });
     });
@@ -2453,12 +2510,30 @@
         moveSelection(1);
       } else if (event.key.toLowerCase() === "b" && state.activeId) {
         setSplit(state.split > 5 ? 0 : 68);
+      } else if (event.key.toLowerCase() === "a" && state.activeId && state.items.length > 0) {
+        applyCurrentLookToAll();
+      } else if (event.key.toLowerCase() === "e" && state.items.length > 0 && !state.exporting) {
+        runExport("all");
+      } else if (
+        ["+", "=", "-", "_", "0"].includes(event.key) &&
+        state.activeId &&
+        !dom.previewWrap.hidden
+      ) {
+        event.preventDefault();
+        if (event.key === "0") resetPreviewZoom();
+        else zoomStep(["-", "_"].includes(event.key) ? -1 : 1);
       }
     });
 
   window.addEventListener("resize", () => {
       requestAnimationFrame(() => {
+        const zoomed = state.zoom > 1.01;
+        if (!zoomed) {
+          state.zoom = 1;
+          state.zoomPan = { x: 0, y: 0 };
+        }
         fitPreviewFrame();
+        applyPreviewZoom();
         placeGuide();
       });
     });
@@ -3109,34 +3184,394 @@
     }
     lastPreviewLookId = preset.id;
     updateLookReadout();
+    resetPreviewZoom();
     fitPreviewFrame();
   }
 
   function fitPreviewFrame() {
-    const item = getActiveItem();
-    if (!item || dom.previewWrap.hidden) return;
+    if (dom.previewWrap.hidden) return;
 
-    // While the photo still has a temporary size (the import animation), use
-    // its unchanged frame. Reading the shrinking box would scale the photo down
-    // a little more on every pass.
-    const box = dom.previewWrap.getBoundingClientRect();
-    const availableWidth = Math.max(80, Math.floor(box.width));
-    const availableHeight = Math.max(80, Math.floor(box.height));
-    if (!availableWidth || !availableHeight) return;
-    const ratio = item.width / item.height;
-    let width;
-    let height;
+    // The new print must not decide its own room. If the photo is visible while
+    // the stage is measured, flex grows the stage to the photo's min-content
+    // width and the height budget turns into a bogus, tiny number.
+    const photoWasHidden = dom.previewWrap.style.visibility;
+    
+    // visibility keeps the layout, so the rail's place and the padding stay
+    // measurable; display:none would collapse the stage to its empty state.
+    dom.previewWrap.style.visibility = "hidden";
+    try {
+      if (!dom.previewWrap.hidden) void dom.previewWrap.offsetWidth;
 
-    if (availableWidth / availableHeight > ratio) {
-      height = availableHeight;
-      width = height * ratio;
-    } else {
-      width = availableWidth;
-      height = width / ratio;
+      // Reading the photo's own box on every pass made it shrink its way down
+      // to the 80px floor. The darkroom box is the truth.
+      const mobile = window.matchMedia("(max-width: 790px)").matches;
+      const desk = dom.zoomDock;
+      const wideDesk = desk && !mobile && window.matchMedia("(min-width: 1000px)").matches;
+      const deskInFlow = desk && (!wideDesk || dom.root.classList.contains("is-zoomed"));
+      const stageBox = dom.stage.getBoundingClientRect();
+      const stageStyle = window.getComputedStyle(dom.stage);
+      const padX = (parseFloat(stageStyle.paddingLeft) || 0) + (parseFloat(stageStyle.paddingRight) || 0);
+      const padY = (parseFloat(stageStyle.paddingTop) || 0) + (parseFloat(stageStyle.paddingBottom) || 0);
+      const railHeight = deskInFlow && desk ? desk.offsetHeight : 0;
+      const gap = parseFloat(stageStyle.rowGap) || 0;
+      const availableWidth = Math.max(80, stageBox.width - padX - (mobile ? 24 : 0));
+      const availableHeight = Math.max(80, stageBox.height - padY - railHeight - gap);
+      if (!dom.stage.clientWidth || !dom.stage.clientHeight) return;
+      const frameRatio = dom.beforeCanvas.width / Math.max(1, dom.beforeCanvas.height);
+      const ratio = Number.isFinite(frameRatio) && frameRatio > 0 ? frameRatio : 1;
+      // On a phone, reserve a slim gutter beside very tall photos so the zoom
+      // controls always land on the controls themselves, not on the photo.
+      const narrowMobile =
+        mobile && dom.dropZone.classList.contains("stage-depth-1") && ratio < 0.66;
+      dom.previewWrap.classList.toggle("is-narrow", narrowMobile);
+      const widthBudget = narrowMobile ? availableWidth - 39 : availableWidth;
+      // Wide photos still need room for the segmented zoom dock. Reserve the
+      // gutter only when the dock would otherwise sit over the image.
+      const shortMobile =
+        mobile && dom.dropZone.classList.contains("stage-depth-1") && ratio > 2.2;
+      dom.previewWrap.classList.toggle("is-very-wide", shortMobile);
+      let width;
+      let height;
+
+      if (shortMobile) {
+        width = widthBudget;
+        height = width / ratio;
+      } else if (widthBudget / availableHeight > ratio) {
+        height = availableHeight;
+        width = height * ratio;
+      } else {
+        width = widthBudget;
+        height = width / ratio;
+      }
+
+      dom.previewWrap.style.width = `${Math.floor(width)}px`;
+      dom.previewWrap.style.height = `${Math.floor(height)}px`;
+      state.previewBase = { width: Math.floor(width), height: Math.floor(height) };
+    } finally {
+      dom.previewWrap.style.visibility = photoWasHidden;
     }
+    applyPreviewZoom();
+  }
 
-    dom.previewWrap.style.width = `${Math.floor(width)}px`;
-    dom.previewWrap.style.height = `${Math.floor(height)}px`;
+  const ZOOM_STEPS = [1, 1.25, 1.5, 2, 2.5, 3];
+
+  function pinchMidpoint(touches) {
+    return {
+      x: (touches[0].x + touches[1].x) / 2,
+      y: (touches[0].y + touches[1].y) / 2,
+    };
+  }
+
+  function setZoomAt(nextZoom, anchor) {
+    const next = clamp(nextZoom, 1, 3);
+    const bounds = dom.previewWrap.getBoundingClientRect();
+    const originX = anchor ? anchor.x : bounds.left + bounds.width / 2;
+    const originY = anchor ? anchor.y : bounds.top + bounds.height / 2;
+    const contentX =
+      (originX - bounds.left - bounds.width / 2 - state.zoomPan.x) / state.zoom + state.previewBase.width / 2;
+    const contentY =
+      (originY - bounds.top - bounds.height / 2 - state.zoomPan.y) / state.zoom + state.previewBase.height / 2;
+    state.zoom = next;
+    state.zoomPan = {
+      x: originX - bounds.left - bounds.width / 2 - (contentX - state.previewBase.width / 2) * next,
+      y: originY - bounds.top - bounds.height / 2 - (contentY - state.previewBase.height / 2) * next,
+    };
+    if (next === 1) state.zoomPan = { x: 0, y: 0 };
+    applyPreviewZoom();
+  }
+
+  // Desktop: explicit buttons, wheel and double-click. Touch screens never
+  // receive taps on the photo itself, so open-look, scroll and pan gestures
+  // cannot be mistaken for a zoom.
+  function bindZoomControls() {
+    const touchPoints = new Map();
+    let pinch = null;
+    let lastTap = 0;
+    let lastTapAt = { x: 0, y: 0 };
+    let touchPan = null;
+    let releaseTimer = null;
+    let resizePending = false;
+    const release = (delay = 0) => {
+      window.clearTimeout(releaseTimer);
+      releaseTimer = window.setTimeout(() => dom.root.classList.remove("is-zoomed"), delay);
+    };
+
+    let press = null;
+    const begin = (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      // A relayed gesture from the split slider carries an id that has no live
+      // pointer behind it, and setPointerCapture would throw and abort the pan.
+      try {
+        dom.previewZoomLayer.setPointerCapture?.(event.pointerId);
+      } catch {
+        /* no live pointer to capture: plain dragging still works */
+      }
+      window.clearTimeout(releaseTimer);
+      dom.root.classList.add("is-zoomed");
+      press = {
+        id: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        panStart: { ...state.zoomPan },
+        dragged: false,
+      };
+      dom.previewZoom.classList.add("is-pressing");
+    };
+    const finish = (event, cancelled) => {
+      if (!press || press.id !== event.pointerId) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const current = press;
+      press = null;
+      dom.previewZoom.classList.remove("is-pressing", "is-panning");
+      if (!cancelled && !current.dragged) {
+        if (state.zoom > 1) resetPreviewZoom();
+        else zoomStep(1, event.clientX, event.clientY);
+      }
+      // Keep the control desk open while the pointer rests on it.
+      const overDesk = dom.zoomDock.contains(event.target) || dom.zoomDock.matches(":hover");
+      release(overDesk || state.zoom > 1 ? 0 : 1500);
+    };
+    const move = (event) => {
+      if (!press || press.id !== event.pointerId) return;
+      const dx = event.clientX - press.x;
+      const dy = event.clientY - press.y;
+      if (!press.dragged && Math.hypot(dx, dy) < (event.pointerType === "mouse" ? 4 : 9)) return;
+      if (state.zoom <= 1) return;
+      press.dragged = true;
+      dom.previewZoom.classList.add("is-panning");
+      state.zoomPan = {
+        x: press.panStart.x + dx,
+        y: press.panStart.y + dy,
+      };
+      applyPreviewZoom();
+    };
+    dom.previewZoomLayer.addEventListener("pointerdown", (event) => {
+      if (event.pointerType !== "mouse" || event.button !== 0) return;
+      begin(event);
+    });
+    dom.previewZoomLayer.addEventListener("pointermove", move);
+    dom.previewZoomLayer.addEventListener("pointerup", (event) => finish(event, false));
+    dom.previewZoomLayer.addEventListener("pointercancel", (event) => finish(event, true));
+    dom.previewZoomLayer.addEventListener("dblclick", (event) => {
+      event.preventDefault();
+      resetPreviewZoom();
+    });
+    dom.previewZoom.addEventListener("pointerenter", (event) => {
+      if (event.pointerType !== "mouse") return;
+      window.clearTimeout(releaseTimer);
+      dom.root.classList.add("is-zoomed");
+    });
+    dom.previewZoom.addEventListener("pointerleave", () => {
+      if (press || state.zoom > 1) return;
+      release(650);
+    });
+    dom.zoomDock.addEventListener("pointerenter", (event) => {
+      if (event.pointerType !== "mouse") return;
+      window.clearTimeout(releaseTimer);
+      dom.root.classList.add("is-zoomed");
+    });
+    dom.zoomDock.addEventListener("pointerleave", (event) => {
+      if (event.pointerType !== "mouse" || state.zoom > 1) return;
+      release(650);
+    });
+    dom.zoomDock.addEventListener("focusin", () => {
+      window.clearTimeout(releaseTimer);
+      dom.root.classList.add("is-zoomed");
+    });
+    dom.zoomDock.addEventListener("focusout", () => {
+      if (state.zoom <= 1) release(650);
+    });
+
+    // Touch: free pinching (1x-3x), finger pan once enlarged, and a slow
+    // double-tap to fit. A moved finger is always a pan/scroll, never a tap.
+    dom.previewZoom.addEventListener("pointerdown", (event) => {
+      if (event.pointerType === "mouse" || event.button !== 0) return;
+      event.preventDefault();
+      event.stopPropagation();
+      touchPoints.set(event.pointerId, { x: event.clientX, y: event.clientY, startX: event.clientX, startY: event.clientY });
+      try {
+        dom.previewZoom.setPointerCapture?.(event.pointerId);
+      } catch {
+        /* a relayed gesture has no live pointer to capture */
+      }
+      if (touchPoints.size === 2) {
+        const points = [...touchPoints.values()];
+        pinch = {
+          distance: Math.hypot(points[0].startX - points[1].startX, points[0].startY - points[1].startY),
+          zoom: state.zoom,
+          pan: { ...state.zoomPan },
+          center: pinchMidpoint(points),
+          ids: [...touchPoints.keys()],
+        };
+        touchPan = null;
+      } else if (touchPoints.size === 1) {
+        touchPan = {
+          id: event.pointerId,
+          x: event.clientX,
+          y: event.clientY,
+          pan: { ...state.zoomPan },
+          moved: false,
+        };
+      }
+    });
+    dom.previewZoom.addEventListener("pointermove", (event) => {
+      const point = touchPoints.get(event.pointerId);
+      if (!point) return;
+      event.preventDefault();
+      point.x = event.clientX;
+      point.y = event.clientY;
+      if (pinch && touchPoints.size >= 2) {
+        const points = [...touchPoints.values()];
+        const distance = Math.max(1, Math.hypot(points[0].x - points[1].x, points[0].y - points[1].y));
+        const center = pinchMidpoint(points);
+        if (!resizePending) {
+          resizePending = true;
+          requestAnimationFrame(() => {
+            resizePending = false;
+            fitPreviewFrame();
+          });
+        }
+        setZoomAt(pinch.zoom * (distance / pinch.distance), center);
+        state.zoomPan = {
+          x: pinch.pan.x + center.x - pinch.center.x,
+          y: pinch.pan.y + center.y - pinch.center.y,
+        };
+        applyPreviewZoom();
+        return;
+      }
+      if (!touchPan || touchPan.id !== event.pointerId) return;
+      const dx = event.clientX - touchPan.x;
+      const dy = event.clientY - touchPan.y;
+      if (!touchPan.moved && Math.hypot(dx, dy) > 8) {
+        if (state.zoom <= 1) return;
+        touchPan.moved = true;
+        dom.previewZoom.classList.add("is-panning");
+      }
+      if (!touchPan.moved) return;
+      state.zoomPan = { x: touchPan.pan.x + dx, y: touchPan.pan.y + dy };
+      applyPreviewZoom();
+    });
+    const endTouch = (event) => {
+      const point = touchPoints.get(event.pointerId);
+      if (!point) return;
+      touchPoints.delete(event.pointerId);
+      dom.previewZoom.classList.remove("is-panning");
+      if (pinch) {
+        if (touchPoints.size < 2) pinch = null;
+        if (touchPoints.size === 1) {
+          const [remainingId, remaining] = [...touchPoints.entries()][0];
+          touchPan = {
+            id: remainingId,
+            x: remaining.x,
+            y: remaining.y,
+            pan: { ...state.zoomPan },
+            moved: true,
+          };
+        }
+      }
+      if (touchPan && touchPan.id === event.pointerId) {
+        const moved = touchPan.moved;
+        touchPan = null;
+        if (!moved && event.type === "pointerup") {
+          const now = performance.now();
+          const quick = now - lastTap < 340;
+          const near = Math.hypot(event.clientX - lastTapAt.x, event.clientY - lastTapAt.y) < 32;
+          if (quick && near) {
+            resetPreviewZoom();
+            lastTap = 0;
+          } else {
+            lastTap = now;
+            lastTapAt = { x: event.clientX, y: event.clientY };
+          }
+        }
+      }
+    };
+    dom.previewZoom.addEventListener("pointerup", endTouch);
+    dom.previewZoom.addEventListener("pointercancel", endTouch);
+
+    dom.previewZoom.addEventListener("wheel", (event) => {
+      if (mobileQuery.matches) return;
+      event.preventDefault();
+      zoomStep(event.deltaY < 0 ? 1 : -1, event.clientX, event.clientY);
+    }, { passive: false });
+
+    // Control desk: desktop only; hidden on phones where gestures rule.
+    dom.zoomDock.addEventListener("pointerdown", (event) => event.stopPropagation());
+    dom.zoomDock.addEventListener("click", (event) => event.stopPropagation());
+    dom.zoomOut.addEventListener("click", () => zoomStep(-1));
+    dom.zoomIn.addEventListener("click", () => zoomStep(1));
+    dom.zoomFit.addEventListener("click", (event) => {
+      event.stopPropagation();
+      resetPreviewZoom();
+    });
+  }
+
+  function resetPreviewZoom() {
+    state.zoom = 1;
+    state.zoomPan = { x: 0, y: 0 };
+    dom.root.classList.remove("is-zoomed");
+    dom.previewZoomLayer.style.transform = "";
+    applyPreviewZoom();
+  }
+
+  function zoomStep(direction, clientX, clientY) {
+    const next =
+      direction > 0
+        ? ZOOM_STEPS.find((step) => step > state.zoom + 0.01) ?? state.zoom
+        : [...ZOOM_STEPS].reverse().find((step) => step < state.zoom - 0.01) ?? state.zoom;
+    if (next === state.zoom) return;
+    const bounds = dom.previewWrap.getBoundingClientRect();
+    const focusX = clientX == null ? bounds.left + bounds.width / 2 : clientX;
+    const focusY = clientY == null ? bounds.top + bounds.height / 2 : clientY;
+    const baseX = state.previewBase.width / 2;
+    const baseY = state.previewBase.height / 2;
+    const contentX = (focusX - bounds.left - bounds.width / 2 - state.zoomPan.x) / state.zoom + baseX;
+    const contentY = (focusY - bounds.top - bounds.height / 2 - state.zoomPan.y) / state.zoom + baseY;
+    state.zoom = next;
+    state.zoomPan = {
+      x: focusX - bounds.left - bounds.width / 2 - (contentX - baseX) * next,
+      y: focusY - bounds.top - bounds.height / 2 - (contentY - baseY) * next,
+    };
+    applyPreviewZoom();
+  }
+
+  function togglePreviewZoom(clientX, clientY) {
+    if (state.zoom > 1) {
+      resetPreviewZoom();
+    } else {
+      zoomStep(1, clientX, clientY);
+    }
+  }
+
+  function applyPreviewZoom() {
+    if (!dom.previewZoom || !dom.previewWrap || dom.previewWrap.hidden) return;
+    const zoomed = state.zoom > 1.01;
+    dom.root.classList.toggle("is-zoomed", zoomed);
+    dom.previewWrap.classList.toggle("is-zoomed", zoomed);
+    const baseWidth = state.previewBase.width || dom.previewWrap.clientWidth;
+    const baseHeight = state.previewBase.height || dom.previewWrap.clientHeight;
+    const zoom = state.zoom;
+    const maxX = Math.max(0, (baseWidth * zoom - dom.previewWrap.clientWidth) / 2);
+    const maxY = Math.max(0, (baseHeight * zoom - dom.previewWrap.clientHeight) / 2);
+    // A gesture can hand us a NaN anchor; keep it out of the stylesheet, where
+    // an invalid transform silently cancels the whole zoom.
+    if (!Number.isFinite(state.zoomPan.x)) state.zoomPan.x = 0;
+    if (!Number.isFinite(state.zoomPan.y)) state.zoomPan.y = 0;
+    state.zoomPan.x = clamp(state.zoomPan.x, -maxX, maxX);
+    state.zoomPan.y = clamp(state.zoomPan.y, -maxY, maxY);
+    dom.previewZoomLayer.style.transform =
+      zoom === 1 && !state.zoomPan.x && !state.zoomPan.y
+        ? ""
+        : `translate(${state.zoomPan.x.toFixed(2)}px, ${state.zoomPan.y.toFixed(2)}px) scale(${zoom})`;
+    if (dom.zoomValue) dom.zoomValue.textContent = `${Math.round(zoom * 100)}%`;
+    if (dom.zoomOut) dom.zoomOut.disabled = zoom <= 1.01;
+    if (dom.zoomIn) dom.zoomIn.disabled = zoom >= 2.99;
+    if (dom.zoomFit) {
+      dom.zoomFit.classList.toggle("is-active", zoomed);
+      dom.zoomFit.setAttribute("aria-pressed", String(zoomed));
+    }
   }
 
   function setSplit(value) {

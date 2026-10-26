@@ -617,7 +617,8 @@ button:disabled {
   flex-direction: column;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 18px;
+  /* A cut darkroom window: square corners, not a web card. */
+  border-radius: 3px;
   color: #f1ede2;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.025), transparent 34%),
@@ -730,6 +731,42 @@ button:disabled {
     linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px),
     #12130f;
   background-size: auto, 26px 26px, 26px 26px, auto;
+}
+
+/* On a desktop the darkroom reads as a vertical column: the print, then the
+   film rail under it. A row layout would park the rail beside the photo. */
+@media (min-width: 791px) {
+  .stage {
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 0;
+    padding: 20px 18px 0;
+  }
+
+  .stage > .empty-state {
+    flex: 1 1 auto;
+  }
+
+  .stage > .preview-wrap {
+    flex: 0 0 auto;
+  }
+
+  .stage > .stage-desk {
+    flex: 0 0 auto;
+  }
+
+  /* The rail is the full width of the darkroom, not a chip under the photo. */
+  .stage > .stage-desk {
+    align-self: stretch;
+    width: auto;
+    margin: 0;
+  }
+
+  /* Fill the darkroom: the print takes whatever height the rail leaves. */
+  .stage > .preview-wrap {
+    max-height: calc(100% - 42px);
+    margin-top: auto;
+  }
 }
 
 .stage::before,
@@ -909,6 +946,12 @@ button:disabled {
   display: block;
   width: 100%;
   height: 100%;
+}
+
+.preview-zoom-layer {
+  position: absolute;
+  inset: 0;
+  transform-origin: 50% 50%;
 }
 
 .after-canvas {
@@ -2556,5 +2599,351 @@ button:disabled {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+
+/* A quiet paper table for a big desktop monitor. Phones keep the same top bar. */
+.brand-copy::before {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--accent-deep);
+  font-family: var(--sans);
+  font-size: 5.5px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  line-height: 1;
+  content: "SILVER HALIDE  ·  DARKROOM";
+}
+
+/* Click-sound without a sound file: the button's tick is in the motion. */
+.button,
+.icon-button,
+.lang-option {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.button::after,
+.lang-option::after {
+  position: absolute;
+  inset: -4px;
+  border: 1px solid transparent;
+  border-radius: inherit;
+  pointer-events: none;
+  content: "";
+}
+
+.button {
+  position: relative;
+}
+
+.button:active:not(:disabled),
+.icon-button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.975);
+}
+
+.lang-option.is-active::after {
+  border-color: rgba(186, 91, 46, 0.22);
+  animation: lever-settle 260ms ease both;
+}
+
+@keyframes lever-settle {
+  from {
+    opacity: 0;
+    transform: scale(1.12);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* ============================================================
+   The darkroom rail: one strip of developed film lying under the print.
+   Not a row of web buttons. The rail is the negative; the numbers are the
+   stamps a darkroom tech scratches on the leader; the rocker is a physical
+   push-lever with a slot it slides in.
+   ============================================================ */
+
+.stage-desk {
+  position: relative;
+  display: flex;
+  height: 42px;
+  flex: 0 0 auto;
+  align-items: stretch;
+  gap: 0;
+  margin: 0 18px 14px;
+  isolation: isolate;
+  border: 1px solid rgba(250, 245, 232, 0.09);
+  border-radius: 3px;
+  color: #cfc9bb;
+  background:
+    /* Sprocket perforations top and bottom, as on a roll of 135 film. */
+    repeating-linear-gradient(
+        90deg,
+        transparent 0 13px,
+        rgba(9, 9, 7, 0.92) 13px 20px
+      )
+      top / 100% 6px no-repeat,
+    repeating-linear-gradient(
+        90deg,
+        transparent 0 13px,
+        rgba(9, 9, 7, 0.92) 13px 20px
+      )
+      bottom / 100% 6px no-repeat,
+    /* The film base itself: warm orange-black, slightly brighter at the edges. */
+    linear-gradient(180deg, #26241d 0%, #1d1c17 46%, #171611 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(0, 0, 0, 0.4),
+    inset 0 8px 18px rgba(0, 0, 0, 0.34),
+    0 12px 30px rgba(0, 0, 0, 0.26);
+}
+
+/* Faint dye clouding, so the strip reads as exposed emulsion and not as
+   a flat dark rectangle. */
+.stage-desk::before {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  border-radius: inherit;
+  opacity: 0.5;
+  background:
+    radial-gradient(
+      120% 220% at 12% 40%,
+      rgba(186, 91, 46, 0.16),
+      transparent 46%
+    ),
+    radial-gradient(
+      90% 180% at 86% 62%,
+      rgba(120, 108, 74, 0.14),
+      transparent 52%
+    );
+  content: "";
+  pointer-events: none;
+}
+
+/* ---- Leader edge: the caption on the left, stamped into the film ---- */
+
+.stage-desk-title {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 8px;
+  padding: 0 13px 0 15px;
+  border-right: 1px solid rgba(250, 245, 232, 0.07);
+  color: #8d8677;
+  font-family: var(--sans);
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  white-space: nowrap;
+}
+
+/* A punched frame number, the kind printed on the film edge. */
+.stage-desk-title i {
+  position: relative;
+  width: 9px;
+  height: 12px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(232, 176, 131, 0.5);
+  background: rgba(232, 176, 131, 0.08);
+}
+
+.stage-desk-title i::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  background: #e8b083;
+  content: "";
+  transform: translate(-50%, -50%);
+}
+
+/* ---- The lever: a push-lever that sits in a milled slot ---- */
+
+.zoom-rocker {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+}
+
+/* Milled slot the levers sit in. */
+.zoom-rocker::before {
+  position: absolute;
+  z-index: 0;
+  inset: 7px 7px;
+  border-radius: 2px;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.34),
+    rgba(0, 0, 0, 0.12) 42%,
+    rgba(0, 0, 0, 0.3)
+  );
+  box-shadow:
+    inset 0 1px 2px rgba(0, 0, 0, 0.55),
+    inset 0 -1px 0 rgba(250, 245, 232, 0.05);
+  content: "";
+  pointer-events: none;
+}
+
+.desk-button {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 25px;
+  height: 25px;
+  flex: 0 0 auto;
+  place-items: center;
+  padding: 0;
+  border: 1px solid rgba(250, 245, 232, 0.14);
+  border-radius: 1px;
+  color: #cfc9bb;
+  background: linear-gradient(180deg, #34322a 0%, #23221c 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(250, 245, 232, 0.11),
+    0 2px 4px rgba(0, 0, 0, 0.42);
+  font-family: var(--sans);
+  cursor: pointer;
+  transition:
+    transform 130ms var(--ease-out),
+    border-color 160ms ease,
+    background 160ms ease,
+    color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.desk-button svg {
+  width: 12px;
+  height: 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.5;
+  pointer-events: none;
+}
+
+.desk-button:hover:not(:disabled) {
+  border-color: rgba(232, 176, 131, 0.4);
+  color: #f0e6d4;
+  background: linear-gradient(180deg, #403d33 0%, #2a2822 100%);
+}
+
+/* Pressing a darkroom lever: it sinks into the slot and the light drops. */
+.desk-button:active:not(:disabled) {
+  border-color: rgba(232, 176, 131, 0.55);
+  background: linear-gradient(180deg, #1c1b16 0%, #262420 100%);
+  box-shadow:
+    inset 0 2px 5px rgba(0, 0, 0, 0.7),
+    0 0 0 rgba(0, 0, 0, 0);
+  transform: translateY(1px) scale(0.96);
+}
+
+.desk-button:disabled {
+  border-color: rgba(250, 245, 232, 0.06);
+  color: #565246;
+  box-shadow: none;
+}
+
+.desk-button:focus-visible {
+  outline: 1px solid #e8b083;
+  outline-offset: 2px;
+}
+
+/* ---- The middle button carries the reading, like a frame counter ---- */
+
+.desk-fit {
+  width: auto;
+  min-width: 96px;
+  gap: 7px;
+  padding: 0 10px;
+  grid-auto-flow: column;
+}
+
+.desk-fit output {
+  color: #e8b083;
+  font-family: var(--display);
+  font-size: 12px;
+  font-style: italic;
+  letter-spacing: 0.01em;
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 12px rgba(232, 176, 131, 0.3);
+}
+
+.desk-fit.is-active {
+  border-color: rgba(232, 176, 131, 0.52);
+  color: #f2d9bd;
+  background: linear-gradient(180deg, #4a3a2a 0%, #2e261c 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(232, 176, 131, 0.2),
+    0 0 14px rgba(186, 91, 46, 0.16);
+}
+
+/* ---- A small exposure scale: the reading gets a physical track ---- */
+
+.stage-desk-meter {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 2px;
+  padding: 0 12px;
+  min-width: 0;
+}
+
+.stage-desk-meter i {
+  height: 2px;
+  flex: 1 1 0;
+  min-width: 1px;
+  border-radius: 1px;
+  background: rgba(250, 245, 232, 0.09);
+  transition:
+    background 200ms ease,
+    box-shadow 200ms ease;
+}
+
+.stage-desk-meter i:nth-child(-n + 3) {
+  background: rgba(232, 176, 131, 0.22);
+}
+
+.stage-desk-meter i:nth-child(4),
+.stage-desk-meter i:nth-child(5) {
+  background: rgba(250, 245, 232, 0.05);
+}
+
+/* ---- The hint: scratched into the film edge in tiny letters ---- */
+
+.stage-desk-hint {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  padding: 0 14px 0 12px;
+  border-left: 1px solid rgba(250, 245, 232, 0.07);
+  color: #6f6a5e;
+  font-family: var(--sans);
+  font-size: 6.5px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  white-space: nowrap;
+}
+
+/* Wide screens: the rail stretches and the hint keeps its place at the right
+   edge, so the reading always sits at a predictable spot. */
+@media (min-width: 1200px) {
+  .stage-desk {
+    margin-inline: 22px;
+  }
+
+  .stage-desk-hint {
+    margin-left: auto;
+    padding-left: 18px;
   }
 }
