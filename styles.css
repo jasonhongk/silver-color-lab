@@ -33,7 +33,8 @@ body {
   min-height: 100vh;
   overflow: hidden;
   color: var(--ink);
-  background:
+  background-color: var(--paper);
+  background-image:
     radial-gradient(circle at 5% 6%, rgba(255, 251, 237, 0.86), transparent 26%),
     radial-gradient(circle at 95% 100%, rgba(119, 90, 57, 0.13), transparent 28%),
     linear-gradient(118deg, #ece7dc 0%, var(--paper) 48%, #e6e0d3 100%);
@@ -378,10 +379,115 @@ button:disabled {
   overflow-x: hidden;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 12px 2px 16px;
+  padding: 12px 2px 8px;
   scroll-behavior: smooth;
+  scroll-padding-block: 10px;
+  cursor: grab;
+  touch-action: pan-y;
   scrollbar-color: rgba(28, 29, 25, 0.25) transparent;
   scrollbar-width: thin;
+}
+
+.preset-grid.is-grabbing,
+.preset-grid.is-grabbing .preset-card {
+  cursor: grabbing;
+}
+
+.preset-grid.is-grabbing .preset-card {
+  transition: none;
+}
+
+/* While the mouse drags the shelf, the hover lift would make rows jump. */
+.preset-grid.is-grabbing .preset-card:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* A thin print-margin rule under the shelf: drag anywhere on it to browse. */
+.shelf-scroll {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 9px;
+  margin: 1px 2px 10px;
+  color: #6f7064;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  line-height: 1.4;
+  cursor: grab;
+  touch-action: pan-x;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.shelf-scroll-label {
+  white-space: nowrap;
+}
+
+.shelf-scroll-track {
+  position: relative;
+  height: 14px;
+  flex: 1;
+  border-top: 1px solid rgba(28, 29, 25, 0.13);
+}
+
+.shelf-scroll-track::before,
+.shelf-scroll-track::after {
+  position: absolute;
+  top: -4px;
+  width: 1px;
+  height: 7px;
+  background: rgba(28, 29, 25, 0.24);
+  content: "";
+}
+
+.shelf-scroll-track::before {
+  left: 0;
+}
+
+.shelf-scroll-track::after {
+  right: 0;
+}
+
+.shelf-scroll-track i {
+  position: absolute;
+  top: -3px;
+  left: 0;
+  width: 34%;
+  height: 5px;
+  background: var(--ink);
+  pointer-events: none;
+  transition:
+    width 120ms linear,
+    transform 120ms linear;
+}
+
+/* Painted from inline CSS before the theme arrives; only the generic body
+   rule has to be undone once body.booting is removed. */
+.app-shell {
+  transition: opacity 320ms ease;
+}
+
+/* Index.html paints a small darkroom curtain until the packed theme lands. */
+body.booting .boot-veil {
+  visibility: visible;
+  opacity: 1;
+}
+
+body:not(.booting) .boot-veil {
+  visibility: hidden;
+  opacity: 0;
+  pointer-events: none;
+}
+
+body:not(.booting) .app-shell {
+  opacity: 1;
+}
+
+.shelf-scroll.is-grabbing,
+.shelf-scroll.is-grabbing ~ .shelf-scroll {
+  cursor: grabbing;
 }
 
 .preset-grid::-webkit-scrollbar,

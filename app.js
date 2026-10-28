@@ -2125,6 +2125,11 @@
     setupDragAndDrop();
     applyLanguage(i18n.language);
     updateInterface();
+    // Lift the first-paint curtain once the real interface is ready.
+    window.setTimeout(() => {
+      document.body.classList.remove("booting");
+      document.getElementById("bootVeil")?.classList.add("is-gone");
+    }, 30);
     // A language switch reloads the page. If the welcome card was already
     // shown in that session, resume at the tour instead of showing it again.
     let welcomedThisSession = false;
@@ -2260,6 +2265,62 @@
 
     dom.brandTabs.addEventListener("click", handleBrandClick);
     dom.mobileBrandTabs.addEventListener("click", handleBrandClick);
+    bindPresetShelfDrag();
+    bindBrandStripDrag();
+
+    // On a phone, swiping the category strip means browsing: a real tap (little
+    // movement) still switches the brand.
+    function bindBrandStripDrag() {
+      const strip = dom.mobileBrandTabs;
+      let drag = null;
+      let suppressClick = false;
+
+      const finish = (event, cancelled = false) => {
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        const moved = Math.hypot(event.clientX - drag.x, event.clientY - drag.y);
+        if (!cancelled) strip.scrollLeft = drag.scrollLeft - (event.clientX - drag.x);
+        if (moved > 6) suppressClick = true;
+        drag = null;
+        strip.classList.remove("is-dragging");
+      };
+
+      strip.addEventListener("pointerdown", (event) => {
+        if (event.pointerType === "mouse" && event.button !== 0) return;
+        if (strip.scrollWidth <= strip.clientWidth + 2) return;
+        drag = { pointerId: event.pointerId, x: event.clientX, y: event.clientY, scrollLeft: strip.scrollLeft, captured: false };
+      });
+      strip.addEventListener("pointermove", (event) => {
+        if (!drag || event.pointerId !== drag.pointerId) return;
+        const dx = event.clientX - drag.x;
+        const dy = event.clientY - drag.y;
+        if (!strip.classList.contains("is-dragging") && Math.abs(dx) < 6) return;
+        if (Math.abs(dx) <= Math.abs(dy) && !strip.classList.contains("is-dragging")) return;
+        if (!drag.captured) {
+          drag.captured = true;
+          try {
+            strip.setPointerCapture(event.pointerId);
+          } catch {
+            // Synthetic pointers cannot be captured.
+          }
+        }
+        strip.classList.add("is-dragging");
+        event.preventDefault();
+        strip.scrollLeft = drag.scrollLeft - dx;
+      });
+      strip.addEventListener("pointerup", (event) => finish(event));
+      strip.addEventListener("pointercancel", (event) => finish(event, true));
+      window.addEventListener("pointerup", (event) => finish(event));
+      strip.addEventListener(
+        "click",
+        (event) => {
+          if (!suppressClick) return;
+          suppressClick = false;
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        },
+        true,
+      );
+    }
 
     // On a phone, swiping the look rail means browsing: the cards only show a
     // photo preview while scrolling. A real tap (little movement) still picks.
@@ -2888,6 +2949,7 @@
     const visible = filteredPresets();
 
     dom.presetGrid.replaceChildren();
+    updatePresetShelfRail();
 
     visible.forEach((preset, index) => {
       const brand = BRANDS[preset.brand];
@@ -3333,6 +3395,132 @@
     if (next === 1) state.zoomPan = { x: 0, y: 0 };
     applyPreviewZoom();
   }
+
+  /* The desktop shelf drags like a contact sheet: press a card and slide,
+     or drag the thin print-margin rule under it. A tap still picks the look. */
+  function bindPresetShelfDrag() {
+    const shelf = dom.presetGrid;
+    const rail = document.getElementById("shelfScroll");
+    const thumb = document.getElementById("shelfScrollThumb");
+    if (!rail || !thumb) return;
+    let drag = null;
+    let suppressClick = false;
+
+    const metrics = () => {
+      const track = rail.clientWidth - 9;
+      const ratio = shelf.scrollHeight > 0 ? shelf.clientHeight / shelf.scrollHeight : 1;
+      return {
+        track,
+        width: Math.max(26, Math.round(track * Math.min(1, ratio))),
+        range: Math.max(0, shelf.scrollHeight - shelf.clientHeight),
+      };
+    };
+
+    const paintRail = () => {
+      const { track, width, range } = metrics();
+      const offset = range > 0 ? (shelf.scrollTop / range) * (track - width) : 0;
+      thumb.style.width = `${width}px`;
+      thumb.style.transform = `translateX(${offset}px)`;
+    };
+
+    const moveDrag = (event) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      if (event.pointerType === "mouse" && !(event.buttons & 1)) {
+        finishDrag(event, true);
+        return;
+      }
+      if (drag.source === "rail") {
+        const { width, range } = drag.metrics;
+        shelf.scrollTop = drag.scrollTop + ((event.clientX - drag.x) * range) / Math.max(1, drag.metrics.track - width);
+        return;
+      }
+      const dy = event.clientY - drag.y;
+      const dx = event.clientX - drag.x;
+      if (Math.abs(dy) < 2 && Math.abs(dx) < 2) return;
+      event.preventDefault();
+      shelf.scrollTop = drag.scrollTop - dy;
+    };
+
+    const finishDrag = (event, cancelled = false) => {
+      if (!drag || event.pointerId !== drag.pointerId) return;
+      const fromShelf = drag.source === "shelf";
+      const moved = Math.hypot(event.clientX - drag.x, event.clientY - drag.y);
+      if (!cancelled && fromShelf) shelf.scrollTop = drag.scrollTop - (event.clientY - drag.y);
+      if (fromShelf && moved > 5) suppressClick = true;
+      drag = null;
+      shelf.classList.remove("is-grabbing");
+      rail.classList.remove("is-grabbing");
+      paintRail();
+    };
+
+    const startDrag = (event, source) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      if (source === "shelf" && metrics().range <= 2) return;
+      drag = {
+        pointerId: event.pointerId,
+        x: event.clientX,
+        y: event.clientY,
+        scrollTop: shelf.scrollTop,
+        source,
+        metrics: metrics(),
+      };
+      shelf.classList.add("is-grabbing");
+      rail.classList.add("is-grabbing");
+      try {
+        (source === "shelf" ? shelf : rail).setPointerCapture(event.pointerId);
+      } catch {
+        // Synthetic pointers cannot be captured; window listeners still track them.
+      }
+      if (source === "rail") moveDrag(event);
+    };
+
+    shelf.addEventListener("pointerdown", (event) => startDrag(event, "shelf"));
+    rail.addEventListener("pointerdown", (event) => startDrag(event, "rail"));
+    for (const source of [shelf, rail]) {
+      source.addEventListener("pointermove", moveDrag);
+      source.addEventListener("pointerup", (event) => finishDrag(event));
+      source.addEventListener("pointercancel", (event) => finishDrag(event, true));
+      source.addEventListener("lostpointercapture", (event) => finishDrag(event, true));
+    }
+    // Capture normally keeps a fast drag inside the shelf; this is a safety net.
+    window.addEventListener("pointerup", (event) => finishDrag(event));
+    window.addEventListener("pointercancel", (event) => finishDrag(event, true));
+
+    shelf.addEventListener("scroll", paintRail, { passive: true });
+    window.addEventListener("resize", paintRail);
+    window.addEventListener("blur", () => {
+      drag = null;
+      shelf.classList.remove("is-grabbing");
+      rail.classList.remove("is-grabbing");
+    });
+
+    shelf.addEventListener(
+      "click",
+      (event) => {
+        const card = event.target.closest?.(".preset-card");
+        if (!suppressClick) {
+          // Capturing the pointer can retarget the click to the shelf itself
+          // in some engines; a real tap still picks the look under the cursor.
+          if (!card && event.detail > 0) {
+            const hit = document
+              .elementFromPoint(event.clientX, event.clientY)
+              ?.closest(".preset-card");
+            if (hit && shelf.contains(hit)) hit.click();
+          }
+          return;
+        }
+        suppressClick = false;
+        event.preventDefault();
+        event.stopImmediatePropagation();
+      },
+      true,
+    );
+
+    updatePresetShelfRail = paintRail;
+    paintRail();
+  }
+
+  let updatePresetShelfRail = () => {};
 
   // Desktop: explicit buttons, wheel and double-click. Touch screens never
   // receive taps on the photo itself, so open-look, scroll and pan gestures

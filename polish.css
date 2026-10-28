@@ -1997,6 +1997,18 @@ html:not([data-lang="en"]) .doodle-words-en {
     padding: 0 14px 10px;
     scrollbar-width: none;
     scroll-snap-type: x proximity;
+    touch-action: pan-x;
+  }
+
+  /* Phones drag the category strip horizontally with one finger. */
+  .mobile-brand-tabs.is-dragging {
+    scroll-behavior: auto;
+    scroll-snap-type: none;
+    cursor: grabbing;
+  }
+
+  .mobile-brand-tabs.is-dragging .mobile-brand-tab {
+    pointer-events: none;
   }
 
   .mobile-brand-tabs::-webkit-scrollbar {
