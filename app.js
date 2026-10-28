@@ -2554,19 +2554,27 @@
     const tab = event.target.closest("[data-brand]");
     if (!tab) return;
     state.brandFilter = tab.dataset.brand;
+    // On a phone the dock is a sticky bar above the cards; align the new rail
+    // without a smooth scroll so switching brands lands on the first card.
+    const isPhone = window.matchMedia("(max-width: 790px)").matches;
     for (const button of document.querySelectorAll("[data-brand]")) {
       const active = button.dataset.brand === state.brandFilter;
       const isMobileTab = button.classList.contains("mobile-brand-tab");
       button.classList.toggle("active", active);
       button.setAttribute("aria-selected", String(active));
       if (active && isMobileTab) {
-        button.scrollIntoView({ behavior: "smooth", inline: "center", block: "nearest" });
+        button.scrollIntoView({
+          behavior: isPhone ? "auto" : "smooth",
+          inline: "center",
+          block: "nearest",
+        });
       }
     }
     renderPresets();
     renderMobileLooks();
     dom.presetGrid.scrollTop = 0;
-    dom.mobileLookRail.scrollLeft = 0;
+    dom.mobileLookRail.scrollTo({ left: 0, behavior: "auto" });
+    syncDockPinned();
   }
 
   function animateRecommendation(callback) {
@@ -3128,6 +3136,16 @@
     }
   }
 
+  // On a phone the look dock sticks to the top of the window. Once its label
+  // row has scrolled past, the categories alone stay up so they keep fitting
+  // one line while the print is being examined.
+  function syncDockPinned() {
+    if (!dom.mobileLookDock) return;
+    const onPhone = window.matchMedia("(max-width: 790px)").matches;
+    const depthOne = dom.dropZone.classList.contains("stage-depth-1");
+    dom.dropZone.classList.toggle("is-dock-pinned", onPhone && depthOne);
+  }
+
   function cueExportCard() {
     const exportCard = document.querySelector(".export-card");
     if (!exportCard) return;
@@ -3191,10 +3209,21 @@
   function fitPreviewFrame() {
     if (dom.previewWrap.hidden) return;
 
+    // The print must not size itself. While its old width is still on the
+    // element, a phone's flex column can report a collapsed darkroom and hand
+    // the brand-new photo a 2x2 box. Park the photo first, then measure.
+    const savedInline = {
+      width: dom.previewWrap.style.width,
+      height: dom.previewWrap.style.height,
+      visibility: dom.previewWrap.style.visibility,
+    };
+    dom.previewWrap.style.width = "0px";
+    dom.previewWrap.style.height = "0px";
+
     // The new print must not decide its own room. If the photo is visible while
     // the stage is measured, flex grows the stage to the photo's min-content
     // width and the height budget turns into a bogus, tiny number.
-    const photoWasHidden = dom.previewWrap.style.visibility;
+    const photoWasHidden = savedInline.visibility;
     
     // visibility keeps the layout, so the rail's place and the padding stay
     // measurable; display:none would collapse the stage to its empty state.
@@ -3205,6 +3234,18 @@
       // Reading the photo's own box on every pass made it shrink its way down
       // to the 80px floor. The darkroom box is the truth.
       const mobile = window.matchMedia("(max-width: 790px)").matches;
+      if (mobile) {
+        // A phone letterboxes any photo in a box of the same shape as the
+        // darkroom. A 3:1 panorama was collapsing to a two-pixel-tall strip,
+        // so the print gets the shape of the stage and the photo is contained.
+        const stageNow = dom.stage.getBoundingClientRect();
+        const boxW = Math.max(120, Math.round(stageNow.width * 0.94));
+        const boxH = Math.max(120, Math.round(stageNow.height - 8));
+        dom.previewWrap.style.width = `${boxW}px`;
+        dom.previewWrap.style.height = `${boxH}px`;
+        state.previewBase = { width: boxW, height: boxH };
+        return;
+      }
       const desk = dom.zoomDock;
       const wideDesk = desk && !mobile && window.matchMedia("(min-width: 1000px)").matches;
       const deskInFlow = desk && (!wideDesk || dom.root.classList.contains("is-zoomed"));
@@ -3215,7 +3256,17 @@
       const railHeight = deskInFlow && desk ? desk.offsetHeight : 0;
       const gap = parseFloat(stageStyle.rowGap) || 0;
       const availableWidth = Math.max(80, stageBox.width - padX - (mobile ? 24 : 0));
-      const availableHeight = Math.max(80, stageBox.height - padY - railHeight - gap);
+      // On a phone the darkroom is as tall as it needs to be for the print; it
+      // does not hand down a spare height the way the desktop column does.
+      if (mobile && stageBox.height < 120) {
+        // A collapsed darkroom gives no honest reading; keep the previous box.
+        dom.previewWrap.style.width = savedInline.width || `${Math.floor(availableWidth)}px`;
+        dom.previewWrap.style.height = savedInline.height || `${Math.floor(availableWidth / 1.4)}px`;
+        return;
+      }
+      const availableHeight = mobile
+        ? Math.max(120, Math.round(availableWidth))
+        : Math.max(80, stageBox.height - padY - railHeight - gap);
       if (!dom.stage.clientWidth || !dom.stage.clientHeight) return;
       const frameRatio = dom.beforeCanvas.width / Math.max(1, dom.beforeCanvas.height);
       const ratio = Number.isFinite(frameRatio) && frameRatio > 0 ? frameRatio : 1;
@@ -3249,6 +3300,9 @@
       state.previewBase = { width: Math.floor(width), height: Math.floor(height) };
     } finally {
       dom.previewWrap.style.visibility = photoWasHidden;
+      // A guard exit leaves 0px in place; restore something visible.
+      if (dom.previewWrap.style.width === "0px") dom.previewWrap.style.width = savedInline.width;
+      if (dom.previewWrap.style.height === "0px") dom.previewWrap.style.height = savedInline.height;
     }
     applyPreviewZoom();
   }
@@ -3325,10 +3379,10 @@
       const current = press;
       press = null;
       dom.previewZoom.classList.remove("is-pressing", "is-panning");
-      if (!cancelled && !current.dragged) {
-        if (state.zoom > 1) resetPreviewZoom();
-        else zoomStep(1, event.clientX, event.clientY);
-      }
+      // A tap on the print only steps back out. Zooming in stays an explicit
+      // act (rail, wheel, pinch), so lining up or nudging a compare drag can
+      // never be mistaken for a request to magnify the photo.
+      if (!cancelled && !current.dragged && state.zoom > 1) resetPreviewZoom();
       // Keep the control desk open while the pointer rests on it.
       const overDesk = dom.zoomDock.contains(event.target) || dom.zoomDock.matches(":hover");
       release(overDesk || state.zoom > 1 ? 0 : 1500);
