@@ -380,10 +380,14 @@ button:disabled {
   overflow-y: auto;
   overscroll-behavior: contain;
   padding: 12px 2px 8px;
-  scroll-behavior: smooth;
+  /* Never animate a hand drag: every card has to sit exactly under the
+     cursor. Programmatic jumps (filters, rail) set behavior on purpose. */
+  scroll-behavior: auto;
   scroll-padding-block: 10px;
   cursor: grab;
   touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
   scrollbar-color: rgba(28, 29, 25, 0.25) transparent;
   scrollbar-width: thin;
 }
@@ -391,6 +395,21 @@ button:disabled {
 .preset-grid.is-grabbing,
 .preset-grid.is-grabbing .preset-card {
   cursor: grabbing;
+}
+
+/* No hover lift under the dragging hand: the cards should read as a film
+   rewinding, not a stack of buttons chasing the cursor. */
+.preset-grid.is-dragging-now .preset-card {
+  border-color: rgba(28, 29, 25, 0.1);
+  background: rgba(247, 243, 233, 0.45);
+  box-shadow: none;
+  transform: none;
+}
+
+.preset-grid.is-dragging-now .preset-card.active {
+  border-color: var(--ink);
+  background: var(--paper-light);
+  box-shadow: 0 0 0 1px var(--ink);
 }
 
 .preset-grid.is-grabbing .preset-card {
@@ -419,6 +438,29 @@ button:disabled {
   touch-action: pan-x;
   user-select: none;
   -webkit-user-select: none;
+}
+
+.preset-grid.is-grabbing,
+.shelf-scroll.is-grabbing {
+  cursor: grabbing;
+}
+
+.preset-grid.is-grabbing .preset-card:hover {
+  background: rgba(247, 243, 233, 0.45);
+  box-shadow: none;
+  transform: none;
+}
+
+.preset-grid.is-grabbing .preset-swatch::before,
+.preset-grid.is-grabbing .preset-swatch::after,
+.preset-grid.is-grabbing .preset-card .preset-swatch {
+  animation: none !important;
+  transition: none !important;
+}
+
+.preset-grid.is-grabbing .preset-card.active:hover {
+  background: var(--paper-light);
+  box-shadow: 0 0 0 1px var(--ink);
 }
 
 .shelf-scroll-label {
@@ -2762,8 +2804,16 @@ body:not(.booting) .app-shell {
   }
 
   .toast-stack {
-    right: 14px;
-    bottom: 14px;
+    top: 76px;
+    right: 12px;
+    bottom: auto;
+    width: min(330px, calc(100vw - 24px));
+  }
+
+  /* Phones have no room for a notice over the photo's footer controls. */
+  .toast {
+    padding: 9px 12px;
+    font-size: 9.5px;
   }
 }
 

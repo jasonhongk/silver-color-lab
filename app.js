@@ -2163,7 +2163,7 @@
     window.setTimeout(() => {
       document.body.classList.remove("booting");
       document.getElementById("bootVeil")?.classList.add("is-gone");
-    }, 30);
+    }, 0);
     // A language switch reloads the page. If the welcome card was already
     // shown in that session, resume at the tour instead of showing it again.
     let welcomedThisSession = false;
@@ -3602,7 +3602,7 @@
 
     const metrics = () => {
       const trackEl = rail.querySelector(".shelf-scroll-track");
-      const track = Math.max(26, Math.round(trackEl?.clientWidth || rail.clientWidth - 9));
+      const track = Math.max(26, Math.round(trackEl?.getBoundingClientRect().width || rail.clientWidth - 9));
       const ratio = shelf.scrollHeight > 0 ? shelf.clientHeight / shelf.scrollHeight : 1;
       return {
         track,
@@ -3635,14 +3635,26 @@
         shelf.scrollTop = drag.scrollTop + ((event.clientX - drag.x) * range) / Math.max(1, drag.metrics.track - width);
         return;
       }
-      // A held mouse drag follows the pointer exactly; CSS smooth scrolling
-      // would only chase it and make the shelf feel like it is lagging.
-      shelf.style.scrollBehavior = "auto";
       const dy = event.clientY - drag.y;
       const dx = event.clientX - drag.x;
-      if (Math.abs(dy) < 2 && Math.abs(dx) < 2) return;
+      if (Math.abs(dy) < 1 && Math.abs(dx) < 1) return;
       event.preventDefault();
-      shelf.scrollTop = drag.scrollTop - dy;
+      // The grid never animates scrolling, so every card stays pixel-fixed
+      // under the hand from the first move to the release.
+      shelf.classList.add("is-dragging-now");
+      shelf.classList.toggle("is-drag-up", dy < 0);
+      // A mouse holds the cards exactly under the pointer. Scrolls are whole
+      // pixels, so keep the sub-pixel remainder instead of rounding it away
+      // on every move: otherwise the sheet drifts and lags behind the hand.
+      if (event.pointerType === "mouse") {
+        drag.remainder = (drag.remainder || 0) + dy;
+        const whole = Math.trunc(drag.remainder);
+        drag.remainder -= whole;
+        drag.applied = (drag.applied || 0) + whole;
+        shelf.scrollTop = drag.scrollTop - drag.applied;
+      } else {
+        shelf.scrollTop = drag.scrollTop - dy;
+      }
     };
 
     const finishDrag = (event, cancelled = false) => {
@@ -3663,8 +3675,8 @@
       // without matching pointermove, and a stuck "grabbing" hand makes the
       // shelf feel unresponsive.
       shelf.classList.remove("is-grabbing");
+      shelf.classList.remove("is-dragging-now", "is-drag-up");
       rail.classList.remove("is-grabbing");
-      shelf.style.scrollBehavior = "";
       releaseMouseCapture();
       paintRail();
     };
@@ -3687,6 +3699,8 @@
         x: event.clientX,
         y: event.clientY,
         scrollTop: shelf.scrollTop,
+        applied: 0,
+        remainder: 0,
         source,
         metrics: metrics(),
       };
@@ -3736,8 +3750,8 @@
     window.addEventListener("blur", () => {
       drag = null;
       shelf.classList.remove("is-grabbing");
+      shelf.classList.remove("is-dragging-now", "is-drag-up");
       rail.classList.remove("is-grabbing");
-      shelf.style.scrollBehavior = "";
       releaseMouseCapture();
     });
 
@@ -3772,19 +3786,15 @@
     });
 
     // Desktop wheel: the shelf is short on small laptops, so a plain wheel
-    // turns into a fast, smooth vertical browse without touching the page.
+    // browses it without touching the page. Wheel input is applied instantly;
+    // the natural delta already carries the user's own scroll acceleration.
     shelf.addEventListener(
       "wheel",
       (event) => {
         if (event.ctrlKey || Math.abs(event.deltaY) < Math.abs(event.deltaX)) return;
         if (Math.abs(event.deltaY) < 1) return;
         event.preventDefault();
-        shelf.style.scrollBehavior = "auto";
         shelf.scrollTop += event.deltaY;
-        window.clearTimeout(tapTimer);
-        tapTimer = window.setTimeout(() => {
-          shelf.style.scrollBehavior = "";
-        }, 220);
         paintRail();
       },
       { passive: false },
