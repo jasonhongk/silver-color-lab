@@ -429,7 +429,9 @@ button:disabled {
   position: relative;
   height: 14px;
   flex: 1;
+  min-width: 0;
   border-top: 1px solid rgba(28, 29, 25, 0.13);
+  overflow: hidden;
 }
 
 .shelf-scroll-track::before,
@@ -485,6 +487,111 @@ body:not(.booting) .app-shell {
   opacity: 1;
 }
 
+/* Work on a 1366x768 laptop: the film roll under the print is not a luxury
+   below the fold, so the studio column yields a strip of height to it. */
+.stage-add-photo,
+.stage-strip,
+.stage-photo-actions {
+  display: none;
+}
+
+@media (min-width: 791px) {
+  .stage-strip {
+    display: flex;
+    height: 62px;
+    flex: 0 0 62px;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    padding: 7px 12px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    background: linear-gradient(180deg, #1a1a15, #151610);
+    scrollbar-width: thin;
+    scrollbar-color: rgba(232, 225, 208, 0.28) transparent;
+  }
+
+  .stage-strip::-webkit-scrollbar {
+    height: 3px;
+  }
+
+  .stage-strip::-webkit-scrollbar-thumb {
+    background: rgba(232, 225, 208, 0.28);
+  }
+
+  .strip-chip {
+    position: relative;
+    display: block;
+    width: 46px;
+    height: 46px;
+    flex: 0 0 46px;
+    padding: 2px;
+    overflow: hidden;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    background: #22231d;
+    cursor: pointer;
+  }
+
+  .strip-chip img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .strip-chip span {
+    position: absolute;
+    right: 3px;
+    bottom: 1px;
+    color: rgba(255, 252, 242, 0.9);
+    font-family: var(--sans);
+    font-size: 7px;
+    font-weight: 700;
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.85);
+  }
+
+  .strip-chip.active {
+    border-color: #efe8d7;
+    box-shadow: 0 0 0 1px #efe8d7;
+  }
+
+  .strip-add {
+    display: grid;
+    width: 46px;
+    height: 46px;
+    flex: 0 0 46px;
+    place-content: center;
+    justify-items: center;
+    gap: 1px;
+    border: 1px dashed rgba(232, 225, 208, 0.28);
+    border-radius: 2px;
+    color: #9c9789;
+    background: transparent;
+    font-family: var(--sans);
+    cursor: pointer;
+  }
+
+  .strip-add:hover,
+  .strip-add:focus-visible,
+  .strip-chip:focus-visible {
+    border-color: rgba(232, 225, 208, 0.62);
+    color: #efe8d7;
+  }
+
+  .strip-add span {
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .strip-add small {
+    font-size: 7px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+  }
+
+}
+
 .shelf-scroll.is-grabbing,
 .shelf-scroll.is-grabbing ~ .shelf-scroll {
   cursor: grabbing;
@@ -502,6 +609,18 @@ body:not(.booting) .app-shell {
 .controls-panel::-webkit-scrollbar-thumb {
   border-radius: 999px;
   background: rgba(28, 29, 25, 0.22);
+}
+
+/* A mouse-dragged shelf still shows a slim scrollbar so it clearly continues. */
+.preset-grid::-webkit-scrollbar {
+  width: 7px;
+}
+
+.preset-grid::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 999px;
+  background: rgba(28, 29, 25, 0.42);
+  background-clip: padding-box;
 }
 
 .preset-card {
@@ -716,6 +835,18 @@ body:not(.booting) .app-shell {
   gap: 13px;
 }
 
+/* 1366x768 laptops and smaller: the contact sheet lives inside the darkroom
+   strip, so the duplicate 165px card below it would only eat the fold. */
+@media (min-width: 791px) and (max-height: 860px) {
+  .studio {
+    gap: 0;
+  }
+
+  .studio > .filmstrip-card {
+    display: none;
+  }
+}
+
 .stage-card {
   display: flex;
   min-height: 0;
@@ -780,6 +911,42 @@ body:not(.booting) .app-shell {
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* Darkroom header: an explicit photo picker next to prev / next. */
+.stage-card .stage-tools .stage-add-photo {
+  box-sizing: border-box;
+  display: inline-flex;
+  height: 30px;
+  align-items: center;
+  gap: 5px;
+  padding: 0 10px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 2px;
+  color: #e7e1d1;
+  background: rgba(255, 255, 255, 0.05);
+  font-family: var(--sans);
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.stage-card .stage-tools .stage-add-photo svg {
+  width: 12px;
+  height: 12px;
+  flex: 0 0 12px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-width: 1.6;
+}
+
+.stage-card .stage-tools .stage-add-photo:hover {
+  border-color: rgba(231, 224, 207, 0.6);
+  color: #fffaf0;
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .icon-button {
@@ -872,6 +1039,18 @@ body:not(.booting) .app-shell {
   .stage > .preview-wrap {
     max-height: calc(100% - 42px);
     margin-top: auto;
+  }
+
+  /* With the film strip under the photo, the print and the strip share the
+     darkroom heights instead of overflowing past the bottom edge. */
+  .stage:has(.stage-strip) {
+    gap: 8px;
+    padding-bottom: 12px;
+  }
+
+  .stage:has(.stage-strip) > .preview-wrap {
+    max-height: calc(100% - 42px - 74px);
+    margin-bottom: 4px;
   }
 }
 
@@ -2827,6 +3006,13 @@ body:not(.booting) .app-shell {
     );
   content: "";
   pointer-events: none;
+}
+
+/* The "fit" button is a framing mark, clearer at this size than a glyph. */
+.desk-button.desk-fit svg {
+  width: 15px;
+  height: 15px;
+  stroke-width: 1.25;
 }
 
 /* ---- Leader edge: the caption on the left, stamped into the film ---- */

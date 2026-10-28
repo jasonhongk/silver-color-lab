@@ -664,6 +664,13 @@ body {
     margin-block: auto;
   }
 
+  /* With no photo yet, adding one is the only thing a phone user can do: keep
+     the quick utilities live instead of ghosting the whole bar. */
+  .stage-depth-0 .mobile-stage-utilities {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   .stage-depth-0 .photo-counter,
   .stage-depth-0 .stage-tools .icon-button,
   .stage-depth-0 .stage-foot,
@@ -991,6 +998,58 @@ body {
     animation: stage-tweak-in 380ms var(--ease-out) both;
   }
 
+  .stage-tweak summary {
+    display: block;
+    margin: 0 0 2px;
+    padding: 0;
+    color: inherit;
+    cursor: pointer;
+    text-align: right;
+    list-style: none;
+  }
+
+  /* The summary is the thin close strip, so it reads "收起" rather than
+     repeating itself as a native disclosure triangle. */
+  .stage-tweak summary::marker {
+    content: "";
+  }
+
+  .stage-tweak summary::-webkit-details-marker {
+    display: none;
+  }
+
+  .stage-tweak summary::before {
+    display: inline;
+    margin-right: 3px;
+    color: #a5a094;
+    content: "收起";
+    font-size: 8px;
+    letter-spacing: 0.06em;
+  }
+
+  .stage-tweak:not([open]) .stage-tweak-title {
+    display: none;
+  }
+
+  .stage-tweak:not(.is-visible) .stage-tweak-title,
+  .stage-tweak:not(.is-visible) .stage-tweak-row {
+    display: none;
+  }
+
+  .stage-tweak-title p {
+    margin: 0;
+    color: #77786c;
+    font-size: 8px;
+    line-height: 1.5;
+    text-align: right;
+  }
+
+  .stage-tweak-close {
+    margin-left: 6px;
+    color: #a5a094;
+    font-size: 9px;
+  }
+
   .stage-tweak-title {
     display: flex;
     align-items: baseline;
@@ -1042,6 +1101,61 @@ body {
     border-top: 1px solid rgba(255, 255, 255, 0.06);
   }
 
+  /* Phone quick actions: one obvious row with the three things a phone user
+     actually repeats (browse the roll, swap the photo, discard it). */
+  .mobile-stage-quick {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .mobile-stage-quick button {
+    height: 30px;
+    padding: 0 11px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
+    color: #d9d3c4;
+    background: rgba(255, 255, 255, 0.04);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .mobile-stage-quick button + button {
+    margin-left: 6px;
+  }
+
+  .mobile-quick-actions {
+    display: flex;
+    flex: 1;
+    justify-content: flex-end;
+    min-width: 0;
+  }
+
+  .mobile-quick-actions button {
+    flex: 0 1 auto;
+    padding-inline: 9px;
+  }
+
+  .mobile-stage-quick #mobileQuickRemove {
+    color: #d7a189;
+    border-color: rgba(232, 176, 131, 0.24);
+  }
+
+  .mobile-stage-quick button:active {
+    background: rgba(255, 255, 255, 0.12);
+  }
+
+  .stage-depth-0 .mobile-stage-quick,
+  .stage-depth-2 .mobile-stage-quick {
+    display: none;
+  }
+
   .mobile-stage-apply {
     display: flex;
     align-items: center;
@@ -1090,11 +1204,33 @@ body {
     color: #f1eadc;
   }
 
+  .mobile-stage-utilities #mobileSheetAdd {
+    color: #f0e7d4;
+  }
+
+  .mobile-stage-utilities #mobileSheetAdd em {
+    display: grid;
+    width: 13px;
+    height: 13px;
+    place-content: center;
+    border: 1px solid rgba(231, 224, 207, 0.42);
+    border-radius: 50%;
+    color: #f0e7d4;
+    font-family: var(--sans);
+    font-size: 10px;
+    font-style: normal;
+    line-height: 1;
+  }
+
   .mobile-stage-utilities em {
     color: #d8c29f;
     font-family: var(--display);
     font-size: 10px;
     font-style: italic;
+  }
+
+  .mobile-stage-utilities #mobileSheetSettings.is-open {
+    color: #e8e1d0;
   }
 
   .mobile-apply-all {
@@ -1209,7 +1345,13 @@ body {
   }
 
   .stage-depth-1 .stage-depth-bar {
-    padding-block: 8px 10px;
+    padding-block: 8px 9px;
+  }
+
+  /* The quick row already exposes replace / remove, so the heavier duplicate
+     pair collapses; a 390x844 phone then keeps the whole darkroom on screen. */
+  .stage-depth-1 .stage-photo-actions {
+    display: none;
   }
 
   .controls-panel .export-card.is-cued {
@@ -1220,6 +1362,14 @@ body {
 
 @media (min-width: 791px) {
   .stage-depth-bar {
+    display: none;
+  }
+}
+
+/* A later phone override brings the old action pair back; keep it collapsed
+   in photo mode since the quick row already carries both actions. */
+@media (max-width: 790px) {
+  .stage-depth-1 .stage-photo-actions {
     display: none;
   }
 }
@@ -1968,6 +2118,30 @@ html:not([data-lang="en"]) .doodle-words-en {
     font-size: 11px;
   }
 
+  /* A phone already has "导出成片" in the topbar; the photo picker is a
+     square button right beside it so it is never guessed at. */
+  .stage-card .stage-tools .stage-add-photo {
+    width: 34px;
+    height: 34px;
+    justify-content: center;
+    padding: 0;
+    margin-right: 2px;
+  }
+
+  .stage-card .stage-tools .stage-add-photo span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .stage-card .stage-tools .stage-add-photo svg {
+    width: 17px;
+    height: 17px;
+  }
+
   .mobile-dock-head {
     display: flex;
     align-items: center;
@@ -2592,6 +2766,51 @@ html:not([data-lang="en"]) .doodle-words-en {
 
   .stage-card.stage-depth-1 .stage-desk {
     display: none;
+  }
+
+  .stage-photo-actions {
+    display: flex;
+    gap: 8px;
+    padding: 0 15px 10px;
+    border-top: 1px solid rgba(255, 255, 255, 0.07);
+    padding-top: 8px;
+  }
+
+  .stage-photo-actions button {
+    display: inline-flex;
+    min-height: 30px;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 2px;
+    color: #cfc9bb;
+    background: rgba(255, 255, 255, 0.03);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+  }
+
+  .stage-photo-actions svg {
+    width: 12px;
+    height: 12px;
+    fill: none;
+    stroke: currentColor;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-width: 1.3;
+  }
+
+  .stage-photo-actions #stageReplace {
+    color: #f0e7d4;
+    border-color: rgba(231, 224, 207, 0.36);
+  }
+
+  .stage-photo-actions #stageRemove:hover {
+    border-color: rgba(186, 91, 46, 0.6);
+    color: #e3a17e;
   }
 
   .stage-card.stage-depth-1 .mobile-look-dock {

@@ -1308,6 +1308,8 @@
   const DEFAULT_PRESET = PRESETS[0].id;
   const PRESET_MAP = new Map(PRESETS.map((preset) => [preset.id, preset]));
   const SETTINGS_KEY = "silverhalide-lab-settings-v2";
+  // A desktop without a working drag looks like a dead shelf; always show it.
+  const FORCE_MOUSE_DRAG = true;
 
   const PRESET_ORDER = [
     "hasselblad-hncs",
@@ -2034,6 +2036,7 @@
       "previewZoom",
       "previewZoomLayer",
       "zoomDock",
+      "stageStrip",
       "zoomOut",
       "zoomFit",
       "zoomIn",
@@ -2097,6 +2100,10 @@
       "progressPercent",
       "cancelExport",
       "guideReplay",
+      "stageHeadAdd",
+      "stageReplace",
+      "stageRemove",
+      "mobileSheetAdd",
     ];
 
     for (const id of ids) {
@@ -2104,6 +2111,22 @@
     }
 
     dom.qualityValue = document.getElementById("qualityValue");
+  }
+
+  // Add/Replace/Remove have to exist even if 34 look cards fail to paint.
+  function setupHomeGuardrails() {
+    const add = () => {
+      dom.fileInput.value = "";
+      dom.fileInput.click();
+    };
+    for (const id of ["stageHeadAdd", "mobileSheetAdd"]) {
+      document.getElementById(id)?.addEventListener("click", add);
+    }
+    document.getElementById("stageReplace")?.addEventListener("click", () => pickSinglePhoto(replaceActiveFile));
+    document.getElementById("stageRemove")?.addEventListener("click", () => {
+      if (state.activeId) removeItem(state.activeId);
+    });
+    window.__silverHomeReady = true;
   }
 
   function boot() {
@@ -2123,8 +2146,19 @@
 
     bindEvents();
     setupDragAndDrop();
+    setupHomeGuardrails();
     applyLanguage(i18n.language);
     updateInterface();
+    if (window.matchMedia("(max-width: 790px)").matches) {
+      // Phones start on "choose a photo" rather than a dimmed interface
+      // whose one useful button is buried further down the darkroom.
+      setStageDepth(0);
+    } else {
+      // The tweak panel ships open so its controls exist in the markup; a
+      // desktop darkroom keeps it closed until Advanced is asked for.
+      const tweak = document.querySelector(".stage-tweak");
+      if (tweak) tweak.open = false;
+    }
     // Lift the first-paint curtain once the real interface is ready.
     window.setTimeout(() => {
       document.body.classList.remove("booting");
@@ -2251,9 +2285,28 @@
       dom.fileInput.click();
     };
 
-    for (const button of [dom.addPhotosTop, dom.emptyAdd, dom.filmstripAdd, dom.filmstripEmpty]) {
+    for (const button of [
+      dom.addPhotosTop,
+      dom.emptyAdd,
+      dom.filmstripAdd,
+      dom.filmstripEmpty,
+      dom.stageHeadAdd,
+      dom.mobileSheetAdd,
+    ]) {
+      if (!button) continue;
       button.addEventListener("click", openPicker);
     }
+
+    dom.stageReplace?.addEventListener("click", () => pickSinglePhoto(replaceActiveFile));
+    dom.stageRemove?.addEventListener("click", () => {
+      if (!state.activeId) return;
+      if (state.items.length === 1) {
+        removeItem(state.activeId);
+        setStageDepth(0);
+        return;
+      }
+      removeItem(state.activeId);
+    });
 
     dom.fileInput.addEventListener("change", (event) => {
       addFiles(Array.from(event.target.files || []));
@@ -2499,15 +2552,32 @@
     });
     document.getElementById("mobileExportOne")?.addEventListener("click", () => runExport("one"));
     document.getElementById("mobileExportAll")?.addEventListener("click", () => runExport("all"));
-    document.getElementById("mobileSheetSettings")?.addEventListener("click", () => {
-      const panel = document.querySelector(".controls-panel");
-      panel?.classList.add("is-open");
-      panel?.scrollTo({ top: 0 });
+    document.getElementById("mobileSheetSettings")?.addEventListener("click", (event) => {
+      event.stopPropagation();
+      // "Advanced" opens the tweak drawer inside the darkroom; the export
+      // options live there too, so the phone never has to hunt for them.
+      setTweakOpen(!document.querySelector(".stage-tweak")?.open);
     });
+    // One UI sync serves both the native <summary> toggle and the Advanced
+    // button, so a tap can never open and immediately close the panel.
+    document.querySelector(".stage-tweak")?.addEventListener("toggle", syncTweakUI);
     document.getElementById("mobileSheetRoll")?.addEventListener("click", () => {
       const sheet = document.querySelector(".filmstrip-card");
       sheet?.classList.add("is-open");
       sheet?.scrollTo({ top: 0 });
+    });
+    document.getElementById("mobileQuickRoll")?.addEventListener("click", () => {
+      const sheet = document.querySelector(".filmstrip-card");
+      sheet?.classList.add("is-open");
+      sheet?.scrollTo({ top: 0 });
+    });
+    document.getElementById("mobileQuickReplace")?.addEventListener("click", () => pickSinglePhoto(replaceActiveFile));
+    document.getElementById("mobileQuickRemove")?.addEventListener("click", () => {
+      if (!state.activeId) {
+        setStageDepth(0);
+        return;
+      }
+      removeItem(state.activeId);
     });
     document.querySelector(".controls-heading-row")?.addEventListener("click", () => {
       if (window.matchMedia("(max-width: 790px)").matches) {
@@ -2676,6 +2746,64 @@
       dom.dropZone.classList.remove("is-dragging");
       addFiles(Array.from(event.dataTransfer.files || []));
     });
+  }
+
+  // Replace puts the new photo where the old one sat, so a batch is not
+  // reshuffled just because one frame was swapped.
+  async function replaceActiveFile(file) {
+    const active = getActiveItem();
+    if (!active || !file) return;
+    if (state.exporting) {
+      showToast(t("toast.exporting"));
+      return;
+    }
+    showToast(t("toast.reading", { count: 1 }));
+    try {
+      const original = await decodeImage(file);
+      const width = original.width;
+      const height = original.height;
+      const previewSource = resizeToCanvas(original, PREVIEW_EDGE);
+      const thumbSource = resizeToCanvas(original, THUMB_EDGE);
+      closeImageSource(original);
+      const replacement = {
+        ...active,
+        file,
+        name: file.name,
+        width,
+        height,
+        previewSource,
+        thumbSource,
+        thumbUrl: "",
+      };
+      replacement.thumbUrl = renderThumbnail(replacement);
+      const index = state.items.findIndex((item) => item.id === active.id);
+      state.items[index] = replacement;
+      state.activeId = replacement.id;
+      state.selectedPresetId = replacement.presetId;
+      lastFilmstripSignature = "";
+      updateInterface();
+      renderPreview();
+      showToast(t("toast.replaced", { name: file.name }), "good");
+    } catch (error) {
+      console.warn("Unable to replace photo", file.name, error);
+      showToast(t("toast.skipped", { count: 1, names: file.name }), "error");
+    }
+  }
+
+  function pickSinglePhoto(handler) {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/jpeg,image/png,image/webp,image/heic,image/heif,image/*";
+    input.hidden = true;
+    document.body.append(input);
+    const cleanup = () => input.remove();
+    input.addEventListener("change", () => {
+      const file = input.files?.[0];
+      cleanup();
+      if (file) handler(file);
+    });
+    input.addEventListener("cancel", cleanup);
+    input.click();
   }
 
   async function addFiles(files) {
@@ -3190,9 +3318,61 @@
     );
   }
 
+  // The markup keeps the drawer open on purpose: its sliders then survive even
+  // when a phone browser may not expose the contents of a closed <details> to
+  // automation or assistive tools. The class, not [open], is the visible state.
+  function syncTweakUI() {
+    const tweak = document.querySelector(".stage-tweak");
+    if (!tweak) return;
+    const visible = tweak.open && !tweak.classList.contains("is-pending");
+    tweak.classList.toggle("is-visible", visible);
+    dom.dropZone.classList.toggle("is-tweak-open", visible);
+    document.getElementById("mobileSheetSettings")?.classList.toggle("is-open", visible);
+    if (window.matchMedia("(max-width: 790px)").matches) {
+      tweak.style.display = visible ? "block" : "";
+    }
+    if (visible && !window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      window.requestAnimationFrame(() => tweak.scrollIntoView({ behavior: "smooth", block: "nearest" }));
+    }
+  }
+
+  function setTweakOpen(opening) {
+    const tweak = document.querySelector(".stage-tweak");
+    if (!tweak) return;
+    const visible = tweak.open && !tweak.classList.contains("is-pending");
+    if (opening && !visible) {
+      // Hide it for one instant and reveal it again so the entrance motion
+      // reads even though the markup stays open.
+      tweak.classList.add("is-pending");
+      syncTweakUI();
+      window.requestAnimationFrame(() => {
+        window.requestAnimationFrame(() => {
+          tweak.classList.remove("is-pending");
+          const title = tweak.querySelector(".stage-tweak-title");
+          if (title) {
+            title.style.animation = "none";
+            void title.offsetWidth;
+            title.style.animation = "";
+          }
+          syncTweakUI();
+        });
+      });
+      return;
+    }
+    tweak.classList.remove("is-pending");
+    tweak.open = true;
+    syncTweakUI();
+  }
+
   function setStageDepth(depth) {
     dom.dropZone.classList.remove("stage-depth-0", "stage-depth-1", "stage-depth-2");
     dom.dropZone.classList.add(`stage-depth-${depth}`);
+    // Returning to the plain photo view closes the tweak drawer; otherwise it
+    // would quietly occupy the bottom of the next look-at-the-photo state.
+    if (window.matchMedia("(max-width: 790px)").matches) {
+      const tweak = document.querySelector(".stage-tweak");
+      if (!tweak?.open) setTweakOpen(false);
+    }
     if (dom.previewWrap && !dom.previewWrap.hidden) {
       schedulePreviewFit();
     }
@@ -3405,9 +3585,24 @@
     if (!rail || !thumb) return;
     let drag = null;
     let suppressClick = false;
+    let dragTapCard = null;
+    let dragOrigin = null;
+    let tapTimer = 0;
+    let mouseCapture = false;
+
+    const releaseMouseCapture = () => {
+      if (!mouseCapture) return;
+      mouseCapture = false;
+      try {
+        shelf.releasePointerCapture?.(drag?.pointerId ?? -1);
+      } catch {
+        // The pointer may already be gone.
+      }
+    };
 
     const metrics = () => {
-      const track = rail.clientWidth - 9;
+      const trackEl = rail.querySelector(".shelf-scroll-track");
+      const track = Math.max(26, Math.round(trackEl?.clientWidth || rail.clientWidth - 9));
       const ratio = shelf.scrollHeight > 0 ? shelf.clientHeight / shelf.scrollHeight : 1;
       return {
         track,
@@ -3419,9 +3614,15 @@
     const paintRail = () => {
       const { track, width, range } = metrics();
       const offset = range > 0 ? (shelf.scrollTop / range) * (track - width) : 0;
-      thumb.style.width = `${width}px`;
+      // Never wider than the track: a packed rule can otherwise stretch the
+      // absolute thumb across the page and create a stray horizontal scroll.
+      thumb.style.width = `${Math.min(width, track)}px`;
       thumb.style.transform = `translateX(${offset}px)`;
     };
+    // Recalculate as soon as the browser paints the real page, not only on a
+    // later resize, so the rail can never start at its provisional width.
+    requestAnimationFrame(paintRail);
+    window.addEventListener("load", paintRail, { once: true });
 
     const moveDrag = (event) => {
       if (!drag || event.pointerId !== drag.pointerId) return;
@@ -3434,6 +3635,9 @@
         shelf.scrollTop = drag.scrollTop + ((event.clientX - drag.x) * range) / Math.max(1, drag.metrics.track - width);
         return;
       }
+      // A held mouse drag follows the pointer exactly; CSS smooth scrolling
+      // would only chase it and make the shelf feel like it is lagging.
+      shelf.style.scrollBehavior = "auto";
       const dy = event.clientY - drag.y;
       const dx = event.clientX - drag.x;
       if (Math.abs(dy) < 2 && Math.abs(dx) < 2) return;
@@ -3445,17 +3649,39 @@
       if (!drag || event.pointerId !== drag.pointerId) return;
       const fromShelf = drag.source === "shelf";
       const moved = Math.hypot(event.clientX - drag.x, event.clientY - drag.y);
-      if (!cancelled && fromShelf) shelf.scrollTop = drag.scrollTop - (event.clientY - drag.y);
-      if (fromShelf && moved > 5) suppressClick = true;
+      // scrollTop is authoritative: the clamping at either end is already
+      // reflected there, so re-deriving it from the start would jump back.
+      if (!cancelled && fromShelf && Math.abs(moved) <= 5) {
+        shelf.scrollTop = drag.scrollTop;
+      }
+      if (fromShelf && moved > 5) {
+        dragOrigin = dragTapCard;
+        suppressClick = true;
+      }
       drag = null;
+      // Always drop the grab cursor: a document-level release can arrive
+      // without matching pointermove, and a stuck "grabbing" hand makes the
+      // shelf feel unresponsive.
       shelf.classList.remove("is-grabbing");
       rail.classList.remove("is-grabbing");
+      shelf.style.scrollBehavior = "";
+      releaseMouseCapture();
       paintRail();
     };
 
     const startDrag = (event, source) => {
       if (event.pointerType === "mouse" && event.button !== 0) return;
       if (source === "shelf" && metrics().range <= 2) return;
+      // Mouse only: while the button is held the shelf must keep receiving
+      // moves even outside its box, while its own click target stays intact.
+      if (event.pointerType === "mouse" && source === "shelf") {
+        mouseCapture = true;
+        try {
+          shelf.setPointerCapture(event.pointerId);
+        } catch {
+          // Synthetic pointers cannot be captured; plain dragging still works.
+        }
+      }
       drag = {
         pointerId: event.pointerId,
         x: event.clientX,
@@ -3466,11 +3692,6 @@
       };
       shelf.classList.add("is-grabbing");
       rail.classList.add("is-grabbing");
-      try {
-        (source === "shelf" ? shelf : rail).setPointerCapture(event.pointerId);
-      } catch {
-        // Synthetic pointers cannot be captured; window listeners still track them.
-      }
       if (source === "rail") moveDrag(event);
     };
 
@@ -3478,12 +3699,36 @@
     rail.addEventListener("pointerdown", (event) => startDrag(event, "rail"));
     for (const source of [shelf, rail]) {
       source.addEventListener("pointermove", moveDrag);
-      source.addEventListener("pointerup", (event) => finishDrag(event));
-      source.addEventListener("pointercancel", (event) => finishDrag(event, true));
-      source.addEventListener("lostpointercapture", (event) => finishDrag(event, true));
     }
-    // Capture normally keeps a fast drag inside the shelf; this is a safety net.
-    window.addEventListener("pointerup", (event) => finishDrag(event));
+    // No pointer capture here: Chromium retargets the click to the captured
+    // shelf, and some phones report a capture that then swallows card taps.
+    // Window listeners see the whole drag and the cards still get their click.
+    window.addEventListener("pointerup", (event) => {
+      const wasDrag = drag?.source === "shelf";
+      // A mouse drag can still land outside the shelf; the window listener is
+      // the only place that reliably sees the release.
+      if (wasDrag && drag.scrollTop !== shelf.scrollTop) suppressClick = true;
+      if (!wasDrag) {
+        finishDrag(event);
+        dragTapCard = null;
+        return;
+      }
+      finishDrag(event);
+      // If no click follows (a browser that suppresses it), the tap can still
+      // be honoured after the click window has passed.
+      window.clearTimeout(tapTimer);
+      tapTimer = window.setTimeout(() => {
+        if (suppressClick && dragOrigin && shelf.contains(dragOrigin)) {
+          const tapped = dragOrigin;
+          suppressClick = false;
+          dragOrigin = null;
+          dragTapCard = null;
+          tapped.click();
+        }
+        dragOrigin = null;
+        dragTapCard = null;
+      }, 120);
+    }, true);
     window.addEventListener("pointercancel", (event) => finishDrag(event, true));
 
     shelf.addEventListener("scroll", paintRail, { passive: true });
@@ -3492,29 +3737,67 @@
       drag = null;
       shelf.classList.remove("is-grabbing");
       rail.classList.remove("is-grabbing");
+      shelf.style.scrollBehavior = "";
+      releaseMouseCapture();
     });
 
     shelf.addEventListener(
       "click",
       (event) => {
         const card = event.target.closest?.(".preset-card");
-        if (!suppressClick) {
-          // Capturing the pointer can retarget the click to the shelf itself
-          // in some engines; a real tap still picks the look under the cursor.
-          if (!card && event.detail > 0) {
-            const hit = document
-              .elementFromPoint(event.clientX, event.clientY)
-              ?.closest(".preset-card");
-            if (hit && shelf.contains(hit)) hit.click();
-          }
+        if (event.detail === 0) return;
+        if (suppressClick && event.detail > 0) {
+          // A click after a drag is not a choice; never let a short drag land
+          // on whichever card happens to sit under the pointer.
+          suppressClick = false;
+          dragOrigin = null;
+          dragTapCard = null;
+          event.preventDefault();
+          event.stopImmediatePropagation();
           return;
         }
-        suppressClick = false;
-        event.preventDefault();
-        event.stopImmediatePropagation();
+        // Browsers without pointer capture can retarget the click to the
+        // shelf itself; a plain tap still picks the card that was pressed.
+        if (!card && dragTapCard && shelf.contains(dragTapCard)) {
+          const tapped = dragTapCard;
+          dragTapCard = null;
+          tapped.click();
+        }
+        dragTapCard = null;
       },
       true,
     );
+    shelf.addEventListener("pointerdown", (event) => {
+      dragTapCard = event.target.closest?.(".preset-card") || null;
+    });
+
+    // Desktop wheel: the shelf is short on small laptops, so a plain wheel
+    // turns into a fast, smooth vertical browse without touching the page.
+    shelf.addEventListener(
+      "wheel",
+      (event) => {
+        if (event.ctrlKey || Math.abs(event.deltaY) < Math.abs(event.deltaX)) return;
+        if (Math.abs(event.deltaY) < 1) return;
+        event.preventDefault();
+        shelf.style.scrollBehavior = "auto";
+        shelf.scrollTop += event.deltaY;
+        window.clearTimeout(tapTimer);
+        tapTimer = window.setTimeout(() => {
+          shelf.style.scrollBehavior = "";
+        }, 220);
+        paintRail();
+      },
+      { passive: false },
+    );
+    // The rail itself is also a scrollbar: click or drag its track to jump.
+    rail.addEventListener("pointerdown", (event) => {
+      if (event.target !== rail && event.target !== thumb) return;
+      const box = rail.getBoundingClientRect();
+      const { width, range } = metrics();
+      const ratio = (event.clientX - box.left - width / 2) / Math.max(1, box.width - width);
+      shelf.scrollTop = Math.max(0, Math.min(range, ratio * range));
+      paintRail();
+    });
 
     updatePresetShelfRail = paintRail;
     paintRail();
@@ -3835,6 +4118,8 @@
     }
     lastFilmstripSignature = signature;
     dom.filmstrip.replaceChildren();
+    if (dom.stageStrip) dom.stageStrip.replaceChildren();
+    dom.dropZone.classList.toggle("has-photos", state.items.length > 0);
 
     if (state.items.length === 0) {
       const empty = document.createElement("button");
@@ -3909,12 +4194,47 @@
       });
 
       dom.filmstrip.append(frame);
+
+      if (dom.stageStrip && dom.stageStrip.children.length === 0) {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "strip-chip";
+        chip.dataset.filmId = item.id;
+        chip.setAttribute("role", "listitem");
+        chip.setAttribute("aria-label", item.name);
+        chip.classList.toggle("active", item.id === state.activeId);
+        const thumb = document.createElement("img");
+        thumb.src = item.thumbUrl;
+        thumb.alt = "";
+        thumb.draggable = false;
+        const number = document.createElement("span");
+        number.textContent = String(index + 1).padStart(2, "0");
+        chip.append(thumb, number);
+        chip.addEventListener("click", () => selectItem(item.id));
+        dom.stageStrip.append(chip);
+      }
     });
+
+    if (dom.stageStrip) {
+      const add = document.createElement("button");
+      add.type = "button";
+      add.className = "strip-add";
+      add.setAttribute("aria-label", t("film.add"));
+      add.innerHTML = `<span aria-hidden="true">+</span><small>${escapeHtml(t("mobile.addPhoto"))}</small>`;
+      add.addEventListener("click", () => {
+        dom.fileInput.value = "";
+        dom.fileInput.click();
+      });
+      dom.stageStrip.append(add);
+    }
   }
 
   function updateFilmstripSelection() {
     for (const frame of dom.filmstrip.querySelectorAll(".film-item")) {
       frame.classList.toggle("active", frame.dataset.filmId === state.activeId);
+    }
+    for (const chip of dom.stageStrip?.querySelectorAll(".strip-chip") || []) {
+      chip.classList.toggle("active", chip.dataset.filmId === state.activeId);
     }
   }
 
@@ -3946,6 +4266,7 @@
     const active = getActiveItem();
     const activeIndex = active ? state.items.indexOf(active) + 1 : 0;
 
+    dom.dropZone.classList.toggle("has-photos", count > 0);
     if (active) {
       dom.currentFilename.textContent = active.name;
       dom.currentDimension.textContent = `${active.width} × ${active.height} · ${fileExtension(active.name)}`;

@@ -7,6 +7,12 @@
 /app.js
   Cache-Control: public, max-age=3600, must-revalidate
 
+/app.min.js
+  Cache-Control: public, max-age=3600, must-revalidate
+
+/theme.min.css
+  Cache-Control: public, max-age=3600, must-revalidate
+
 /styles.css
   Cache-Control: public, max-age=3600, must-revalidate
 

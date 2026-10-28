@@ -13,8 +13,23 @@
   }
 
   // The darkroom must open even if a theme or script request is interrupted.
-  window.setTimeout(() => {
+  // Do not hide a healthy page early: the app fades the curtain itself once
+  // its first frame is ready, and this only rescues a stalled load.
+  const rescue = () => {
+    if (window.__silverHomeReady) return;
     document.body?.classList.remove("booting");
     document.getElementById("bootVeil")?.classList.add("is-gone");
-  }, 6000);
+  };
+  window.setTimeout(rescue, 5000);
+  window.addEventListener("load", () => window.setTimeout(rescue, 3500));
+
+  // Keep the home page recoverable if storage is locked down by the browser.
+  window.addEventListener("error", (event) => {
+    if (!document.body?.classList.contains("booting")) return;
+    const source = String(event.filename || "");
+    if (source.includes("app.js")) {
+      document.body.classList.remove("booting");
+      document.getElementById("bootVeil")?.classList.add("is-gone");
+    }
+  });
 })();
