@@ -2406,6 +2406,7 @@
     dom.splitRange.addEventListener("input", (event) => {
       setSplit(Number(event.target.value));
     });
+    bindSplitDrag();
 
     // The invisible split slider covers the whole print, so it swallows the
     // wheel before the zoom layer can see it. Forward it, or the hint on the
@@ -2425,6 +2426,9 @@
     // desktop drag-to-pan and the phone pinch-to-zoom never fire at all.
     // The slider keeps its own job of moving the split line with one finger.
     const relayToZoomLayer = (event) => {
+      // While the compare rule is held, every pointer move is ours: relaying
+      // it would start a preview pan underneath the same hand.
+      if (dom.previewWrap.classList.contains("is-split-dragging")) return;
       // Two fingers mean zoom. A single finger still belongs to the split
       // line unless the print is already magnified and being panned.
       if (event.pointerType === "touch" && event.isPrimary === false) {
@@ -4085,6 +4089,9 @@
     const zoomed = state.zoom > 1.01;
     dom.root.classList.toggle("is-zoomed", zoomed);
     dom.previewWrap.classList.toggle("is-zoomed", zoomed);
+    // Zoom state is the single source of truth for who owns a one-finger
+    // press: the photo while enlarged, the compare rule at Fit.
+    dom.previewWrap.toggleAttribute("data-split-lock", zoomed);
     const baseWidth = state.previewBase.width || dom.previewWrap.clientWidth;
     const baseHeight = state.previewBase.height || dom.previewWrap.clientHeight;
     const zoom = state.zoom;
@@ -4113,6 +4120,112 @@
     state.split = clamp(value, 0, 100);
     dom.previewWrap.style.setProperty("--split", `${state.split}%`);
     dom.splitRange.value = String(state.split);
+  }
+
+  /* The compare rule follows the pointer itself. A native range input is
+     keyboard- and touch-accessible, but it also keeps its own pointer model:
+     grabbing elsewhere on the track slides the thumb at a fixed pace and
+     truncates the steps, so the rule visibly trails a mouse. One pointer
+     press, one frame, one exact position fixes that without giving up keys. */
+  function bindSplitDrag() {
+    const surface = dom.previewWrap;
+    const line = dom.splitLine || document.getElementById("splitLine");
+    let held = null;
+    let paintBox = null;
+    let paintX = 0;
+    let paintFrame = 0;
+
+    const flush = () => {
+      paintFrame = 0;
+      if (!held || !paintBox || paintBox.width <= 0) return;
+      setSplit(((paintX - paintBox.left) / paintBox.width) * 100);
+    };
+
+    // The photo never moves while the rule is held, so measure the frame once
+    // on press and write only the percentage during the move. Writes are
+    // coalesced per animation frame, which keeps a busy photo decode from
+    // building up a backlog of compare positions.
+    const drawAt = (clientX) => {
+      paintX = clientX;
+      if (!paintFrame) paintFrame = window.requestAnimationFrame(flush);
+    };
+
+    const end = (event) => {
+      if (!held) {
+        // A magnified preview consumes the same overlay; its press must not be
+        // turned into a compare move when the finger finally lifts.
+        releaseSplitLock();
+        return;
+      }
+      if (event && event.pointerId !== held.pointerId) return;
+      paintFrame = window.cancelAnimationFrame(paintFrame) || 0;
+      if (event && typeof event.clientX === "number") {
+        paintX = event.clientX;
+        flush();
+      }
+      held = null;
+      paintBox = null;
+      surface.classList.remove("is-split-dragging");
+      releaseSplitLock();
+    };
+
+    // One attribute, not inline styles: it never stacks with CSSOM writes and
+    // the stylesheet can hand the overlay to the photo for panning.
+    const syncSplitLock = () => {
+      surface.toggleAttribute("data-split-lock", state.zoom > 1.01);
+    };
+    const releaseSplitLock = () => {};
+    syncSplitLock();
+    if (dom.zoomIn) dom.zoomIn.addEventListener("click", syncSplitLock);
+    if (dom.zoomOut) dom.zoomOut.addEventListener("click", syncSplitLock);
+    if (dom.zoomFit) dom.zoomFit.addEventListener("click", syncSplitLock);
+    surface.addEventListener("wheel", syncSplitLock, { passive: true });
+    surface.addEventListener("dblclick", syncSplitLock);
+    surface.addEventListener(
+      "pointerdown",
+      (event) => {
+        if (event.target.closest?.(".split-range")) syncSplitLock();
+      },
+      true,
+    );
+
+    const move = (event) => {
+      if (!held || event.pointerId !== held.pointerId) return;
+      if (event.pointerType === "mouse" && !(event.buttons & 1)) {
+        end(event);
+        return;
+      }
+      event.preventDefault();
+      drawAt(event.clientX);
+    };
+
+    const start = (event) => {
+      if (event.pointerType === "mouse" && event.button !== 0) return;
+      // A second finger belongs to pinch-zoom, not the compare rule.
+      if (event.pointerType === "touch" && !event.isPrimary) return;
+      // A magnified photo is being panned: this press goes to the zoom layer.
+      if (state.zoom > 1.01) return;
+      if (held) return;
+      held = { pointerId: event.pointerId };
+      paintBox = surface.getBoundingClientRect();
+      surface.classList.add("is-split-dragging");
+      try {
+        surface.setPointerCapture?.(event.pointerId);
+      } catch {
+        // Synthetic pointers are not capturable; window listeners still work.
+      }
+      drawAt(event.clientX);
+      event.preventDefault();
+    };
+
+    surface.addEventListener("pointerdown", (event) => {
+      const onSlider = event.target.closest?.(".split-range");
+      if (!onSlider) return;
+      start(event);
+    });
+    window.addEventListener("pointermove", move, true);
+    window.addEventListener("pointerup", end, true);
+    window.addEventListener("pointercancel", end, true);
   }
 
   function renderFilmstrip() {

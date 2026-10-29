@@ -1361,6 +1361,26 @@ body:not(.booting) .app-shell {
   cursor: ew-resize;
 }
 
+/* A held compare rule is moved by its own pointer handler, not by the
+   browser's native range model: no thumb delay, no stepped glide. */
+.preview-wrap.is-split-dragging,
+.preview-wrap.is-split-dragging .split-range,
+.preview-wrap.is-split-dragging .split-line {
+  cursor: ew-resize;
+}
+
+/* While enlarged, the photo owns one-finger drag for panning. At Fit, the
+   compare rule owns the same press. Swapping only the topmost interaction
+   keeps the zoom controls, double-click and wheel exactly as they were. */
+.preview-wrap[data-split-lock] .preview-zoom,
+.preview-wrap[data-split-lock] .preview-zoom-layer {
+  pointer-events: auto;
+}
+
+.preview-wrap[data-split-lock] .split-range {
+  pointer-events: none;
+}
+
 .corner-label {
   position: absolute;
   bottom: 10px;

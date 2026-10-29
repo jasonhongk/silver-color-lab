@@ -62,9 +62,9 @@
       @keyframes boot-rule { 0% { transform: scaleX(0.15); } 60% { transform: scaleX(1); } 100% { transform: scaleX(1); } }
       @media (prefers-reduced-motion: reduce) { .boot-veil-rule { animation: none; } }
     </style>
-    <script src="theme-boot.js?v=20261029a"></script>
+    <script src="theme-boot.js?v=20261029b"></script>
     <!-- One packed theme file: a single request for base + polish + guide styles. -->
-    <link rel="stylesheet" href="theme.min.css?v=20261029a" />
+    <link rel="stylesheet" href="theme.min.css?v=20261029b" />
   </head>
   <body class="booting">
     <noscript><style>body.booting .app-shell { opacity: 1; visibility: visible; } .boot-veil { display: none; }</style></noscript>
@@ -580,7 +580,7 @@
       <div class="noscript">这个调色台需要启用 JavaScript。 / This darkroom needs JavaScript enabled.</div>
     </noscript>
 
-    <script src="i18n.js?v=20261029a" defer></script>
+    <script src="i18n.js?v=20261029b" defer></script>
     <script>
       // After first paint, quietly pull the big HEIC decoder so the first
       // iPhone photo never waits on a 1.3 MB download.
@@ -597,7 +597,7 @@
       });
     </script>
     <!-- The app shell is what makes the darkroom usable: fetch it first. -->
-    <script src="app.min.js?v=20261029a" defer fetchpriority="high"></script>
+    <script src="app.min.js?v=20261029b" defer fetchpriority="high"></script>
     <script>
       // Never leave the curtain or the look shelf dead because one request failed.
       window.setTimeout(() => {
@@ -613,7 +613,7 @@
         if (!window.__silverAppFallback) {
           window.__silverAppFallback = true;
           const fallback = document.createElement("script");
-          fallback.src = "app.js?v=20261029a";
+          fallback.src = "app.js?v=20261029b";
           fallback.defer = true;
           document.head.append(fallback);
         }
