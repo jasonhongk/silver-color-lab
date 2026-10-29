@@ -392,6 +392,56 @@ button:disabled {
   scrollbar-width: thin;
 }
 
+/* One reel for the whole look library: the list and its rule share a single
+   clipped sprocket edge instead of stacking a second scrollbar on top. */
+.look-reel {
+  position: relative;
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  flex-direction: column;
+  padding-left: 11px;
+}
+
+.look-reel::before {
+  position: absolute;
+  top: 3px;
+  bottom: 31px;
+  left: 0;
+  width: 5px;
+  background:
+    repeating-linear-gradient(
+      to bottom,
+      rgba(28, 29, 25, 0.3) 0 5px,
+      transparent 5px 13px
+    );
+  content: "";
+  opacity: 0.55;
+  pointer-events: none;
+  transform: translateY(calc(var(--reel-scroll, 0px) * -0.35));
+}
+
+@keyframes reel-advance {
+  to {
+    transform: translateY(calc(var(--reel-scroll, 0px) * -0.35 - 26px));
+  }
+}
+
+/* The punch edge moves while the reel winds, then rests exactly where the
+   scrollbar handle stopped: motion you can read, never a delayed reading. */
+.look-reel.is-winding::before {
+  animation: reel-advance 46ms linear;
+}
+
+.look-reel .preset-grid {
+  /* The custom rule below is the one visible scrollbar. */
+  scrollbar-width: none;
+}
+
+.look-reel .preset-grid::-webkit-scrollbar {
+  display: none;
+}
+
 .preset-grid.is-grabbing,
 .preset-grid.is-grabbing .preset-card {
   cursor: grabbing;
@@ -1538,7 +1588,10 @@ body:not(.booting) .app-shell {
   align-items: center;
   gap: 8px;
   color: #71736a;
-  font-size: 8px;
+  font-family: var(--sans);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
   white-space: nowrap;
 }
 
@@ -2097,113 +2150,228 @@ body:not(.booting) .app-shell {
 }
 
 .four-look-card {
-  padding: 13px;
-  border: 1px solid rgba(186, 91, 46, 0.22);
-  border-radius: 12px;
-  background:
-    radial-gradient(circle at 100% 0, rgba(186, 91, 46, 0.1), transparent 32%),
-    rgba(255, 249, 237, 0.36);
+  padding: 10px 10px 9px;
+  border: 1px solid rgba(28, 29, 25, 0.2);
+  border-radius: 3px;
+  background: rgba(255, 252, 244, 0.3);
+  box-shadow: inset 0 0 0 3px rgba(255, 252, 244, 0.32);
 }
 
-.four-look-head {
-  display: flex;
-  align-items: center;
-  gap: 9px;
+.contact-proof-head .eyebrow {
+  margin-bottom: 4px;
+  font-size: 6.5px;
+  letter-spacing: 0.18em;
 }
 
-.mini-seal {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 34px;
-  place-items: center;
-  border: 1px solid rgba(186, 91, 46, 0.32);
-  border-radius: 50%;
-  color: var(--accent-deep);
-  font-family: var(--display);
-  font-size: 12px;
-  font-style: italic;
-}
-
-.four-look-head .eyebrow {
-  margin-bottom: 3px;
-  font-size: 6px;
-}
-
-.four-look-head h3 {
+.contact-proof-head h3 {
   margin: 0;
   font-family: var(--serif);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
-}
-
-.four-look-card > p {
-  margin: 9px 0;
-  color: var(--muted);
-  font-size: 8px;
-  line-height: 1.55;
+  letter-spacing: -0.02em;
 }
 
 .four-brands {
-  display: flex;
-  align-items: center;
-  margin-bottom: 10px;
+  display: grid;
+  margin: 9px 0 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
-.brand-chip {
-  display: grid;
-  width: 21px;
-  height: 21px;
-  place-items: center;
-  margin-right: -4px;
-  border: 2px solid var(--paper-light);
-  border-radius: 50%;
-  color: #fbf6e9;
-  font-family: var(--display);
-  font-size: 9px;
-  font-style: italic;
+/* Four numbered frames on one strip: each brand is a proof print, not an
+   icon in a row. The punched edge and the white border read as raw paper. */
+.proof-frame {
+  position: relative;
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 4px 4px 3px;
+  border: 1px solid rgba(28, 29, 25, 0.17);
+  background: #faf6ea;
+  box-shadow: 1px 1px 0 rgba(28, 29, 25, 0.08);
+  
+}
+
+.proof-frame:nth-child(1) {
+  --tilt: 0.6deg;
+}
+
+.proof-frame:nth-child(2) {
+  --tilt: -0.4deg;
+  margin-left: 2px;
+}
+
+.proof-frame:nth-child(3) {
+  --tilt: 0.3deg;
+  margin-left: -1px;
+}
+
+.proof-frame:nth-child(4) {
+  --tilt: -0.6deg;
+}
+
+.proof-window {
+  display: block;
+  height: 20px;
+  background-color: var(--proof-swatch, #777);
+  background:
+    linear-gradient(112deg, rgba(255, 255, 255, 0.28), transparent 42%),
+    var(--proof-color);
+  background-position: center;
+  background-size: cover;
+}
+
+/* Once a photo is in the tray, each brand frame shows that photo itself,
+   so the card reads as four proof prints instead of four colour chips. */
+.four-brands.has-proof .proof-window {
+  background-blend-mode: multiply, normal;
+  background-position: center;
+  background-size: auto, cover;
+}
+
+.four-brands.has-proof .proof-window::after {
+  position: absolute;
+  content: none;
 }
 
 .chip-h {
-  background: #7f8d7d;
+  --proof-color: linear-gradient(145deg, #9aa187, #65735d);
 }
 
 .chip-l {
-  background: #7c3527;
+  --proof-color: linear-gradient(145deg, #a05d45, #713024);
 }
 
 .chip-r {
-  background: #3d4941;
+  --proof-color: linear-gradient(145deg, #6c7d72, #343f36);
 }
 
 .chip-f {
-  background: #596d68;
+  --proof-color: linear-gradient(145deg, #83948d, #4d615b);
 }
 
-.four-brands i {
-  width: 1px;
-  height: 14px;
-  margin: 0 8px 0 9px;
-  background: var(--line);
+.proof-letter {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  color: rgba(255, 252, 242, 0.92);
+  font-family: var(--display);
+  font-size: 11px;
+  font-style: italic;
+  line-height: 1;
+  text-shadow: 0 1px 3px rgba(28, 24, 16, 0.4);
 }
 
-.four-brands > span:last-child {
+.proof-name {
+  display: -webkit-box;
+  min-height: 16px;
+  max-width: calc(100% - 13px);
+  overflow: hidden;
+  color: var(--ink-soft);
+  font-family: var(--serif);
+  font-size: 7.5px;
+  font-weight: 650;
+  line-height: 1.1;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.proof-frame b {
+  position: absolute;
+  top: 25px;
+  right: 5px;
+  z-index: 1;
+  padding-left: 3px;
+  color: rgba(28, 29, 25, 0.48);
+  background: #faf6ea;
+  font-family: var(--sans);
+  font-size: 5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+}
+
+.proof-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.proof-foot > span {
   color: var(--muted);
   font-size: 7px;
+  letter-spacing: 0.03em;
 }
 
-.button-outline {
-  width: 100%;
-  min-height: 34px;
-  border-color: rgba(28, 29, 25, 0.23);
-  border-radius: 7px;
-  background: rgba(255, 252, 244, 0.32);
-  font-size: 9px;
+.proof-strip-button {
+  position: relative;
+  display: flex;
+  min-height: 30px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 0 10px 0 15px;
+  border: 0;
+  color: #f3eddf;
+  background: var(--ink);
+  font-family: var(--sans);
+  font-size: 8.5px;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 160ms ease;
 }
 
-.button-outline:hover:not(:disabled) {
-  border-color: var(--ink);
-  background: rgba(255, 252, 244, 0.8);
+/* Once the contact proof has a negative under it, the strip handle is the
+   brightest thing in the panel: the unmistakable next step. */
+.four-look-card:has(.has-proof) .proof-strip-button {
+  color: #fff7e8;
+  background:
+    linear-gradient(112deg, rgba(255, 255, 255, 0.1), transparent 45%),
+    var(--accent-deep);
+}
+
+.four-look-card:has(.has-proof) .proof-strip-button::after {
+  position: absolute;
+  inset: 3px;
+  border: 1px solid rgba(255, 248, 232, 0.24);
+  content: "";
+  pointer-events: none;
+}
+
+.proof-arrow {
+  font-size: 11px;
+  transition: transform 180ms ease;
+}
+
+.proof-strip-button:hover:not(:disabled) .proof-arrow {
+  transform: translate(2px, -2px);
+}
+
+.proof-strip-button:hover:not(:disabled) {
+  background: #30312a;
+}
+
+.proof-strip-button:disabled {
+  color: #a8a394;
+  background: rgba(28, 29, 25, 0.28);
+}
+
+.proof-sprockets {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: 5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.proof-sprockets i {
+  width: 3px;
+  height: 3px;
+  background: rgba(255, 252, 242, 0.46);
 }
 
 .export-card {
@@ -3173,6 +3341,9 @@ body:not(.booting) .app-shell {
     inset 0 1px 0 rgba(250, 245, 232, 0.11),
     0 2px 4px rgba(0, 0, 0, 0.42);
   font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
   cursor: pointer;
   transition:
     transform 130ms var(--ease-out),
@@ -3226,16 +3397,20 @@ body:not(.booting) .app-shell {
   width: auto;
   min-width: 96px;
   gap: 7px;
-  padding: 0 10px;
+  padding: 0 12px;
   grid-auto-flow: column;
+  font-size: 11px;
+  font-weight: 650;
+  letter-spacing: 0.08em;
 }
 
 .desk-fit output {
   color: #e8b083;
-  font-family: var(--display);
-  font-size: 12px;
-  font-style: italic;
-  letter-spacing: 0.01em;
+  font-family: var(--sans);
+  font-size: 10.5px;
+  font-style: normal;
+  font-weight: 700;
+  letter-spacing: 0.05em;
   font-variant-numeric: tabular-nums;
   text-shadow: 0 0 12px rgba(232, 176, 131, 0.3);
 }
@@ -3290,11 +3465,11 @@ body:not(.booting) .app-shell {
   flex: 0 0 auto;
   padding: 0 14px 0 12px;
   border-left: 1px solid rgba(250, 245, 232, 0.07);
-  color: #6f6a5e;
+  color: #8a8474;
   font-family: var(--sans);
-  font-size: 6.5px;
-  font-weight: 600;
-  letter-spacing: 0.13em;
+  font-size: 8px;
+  font-weight: 550;
+  letter-spacing: 0.06em;
   white-space: nowrap;
 }
 

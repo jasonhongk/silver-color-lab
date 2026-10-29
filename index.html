@@ -62,9 +62,9 @@
       @keyframes boot-rule { 0% { transform: scaleX(0.15); } 60% { transform: scaleX(1); } 100% { transform: scaleX(1); } }
       @media (prefers-reduced-motion: reduce) { .boot-veil-rule { animation: none; } }
     </style>
-    <script src="theme-boot.js?v=20261029b"></script>
+    <script src="theme-boot.js?v=20261029c"></script>
     <!-- One packed theme file: a single request for base + polish + guide styles. -->
-    <link rel="stylesheet" href="theme.min.css?v=20261029b" />
+    <link rel="stylesheet" href="theme.min.css?v=20261029c" />
   </head>
   <body class="booting">
     <noscript><style>body.booting .app-shell { opacity: 1; visibility: visible; } .boot-veil { display: none; }</style></noscript>
@@ -100,12 +100,14 @@
               <span class="brand-subtitle" data-i18n="brand.subtitle">胶片气质调色台</span>
             </span>
           </span>
-          <span class="brand-side" aria-hidden="true">
-            <span>NO.01</span>
-            <i></i>
-            <span>EST. 2026</span>
-          </span>
         </a>
+
+        <!-- The old NO.01 stamp now does the job a film-box label does: it
+             states the film stock and its ISO, so it earns its place. -->
+        <span class="film-box-tag" aria-hidden="true">
+          <span class="film-stock-name">SILVER HALIDE</span>
+          <span class="film-iso">ISO <b>400</b></span>
+        </span>
 
         <div class="privacy-pill">
           <span class="privacy-dot"></span>
@@ -153,10 +155,12 @@
             <button class="brand-tab" data-brand="software" type="button" role="tab" aria-selected="false" data-i18n="brand.software">软件</button>
           </div>
 
-          <div class="preset-grid reveal reveal-3" id="presetGrid" role="list" aria-label="调色风格"></div>
-          <div class="shelf-scroll" id="shelfScroll" aria-hidden="true">
-            <span class="shelf-scroll-label" id="shelfScrollLabel" data-i18n="library.dragHint">按住拖动 · 上下浏览</span>
-            <span class="shelf-scroll-track"><i id="shelfScrollThumb"></i></span>
+          <div class="look-reel" id="lookReel">
+            <div class="preset-grid reveal reveal-3" id="presetGrid" role="list" aria-label="调色风格"></div>
+            <div class="shelf-scroll" id="shelfScroll">
+              <span class="shelf-scroll-label" id="shelfScrollLabel" data-i18n="library.dragHint">按住拖动 · 上下浏览</span>
+              <span class="shelf-scroll-track" aria-hidden="true"><i id="shelfScrollThumb"></i></span>
+            </div>
           </div>
 
           <div class="library-foot reveal reveal-4">
@@ -287,8 +291,6 @@
                   <i></i><i></i><i></i><i></i><i></i>
                 </span>
               </div>
-
-              <div class="stage-strip" id="stageStrip" role="list" aria-label="片卷" data-i18n-aria="film.aria"></div>
 
               <div class="drop-cue" id="dropCue">
                 <span class="drop-cue-icon" aria-hidden="true">
@@ -478,25 +480,45 @@
           </button>
 
           <section class="four-look-card reveal reveal-4">
-            <div class="four-look-head">
-              <span class="mini-seal">×4</span>
-              <div>
-                <span class="eyebrow">SIGNATURE SET</span>
-                <h3 data-i18n="four.title">一张照片，四种气质</h3>
-              </div>
+            <div class="contact-proof-head">
+              <span class="eyebrow">CONTACT PROOF / 04</span>
+              <h3 data-i18n="four.title">一张照片，四种气质</h3>
             </div>
-            <p class="four-look-desc" data-i18n="four.copy">每张照片同时冲出哈苏、徕卡、理光、富士四个版本，打包下载。</p>
-            <div class="four-brands" aria-hidden="true">
-              <span class="brand-chip chip-h">H</span>
-              <span class="brand-chip chip-l">L</span>
-              <span class="brand-chip chip-r">R</span>
-              <span class="brand-chip chip-f">F</span>
-              <i></i>
+            <!-- The same four brands, drawn as numbered frames on a contact
+                 sheet. Each frame is a live proof of the current photo. -->
+            <div class="four-brands" id="fourProofs" aria-label="四种冲印版本">
+              <figure class="proof-frame chip-h">
+                <i class="proof-window"></i>
+                <span class="proof-letter">H</span>
+                <span class="proof-name">哈苏</span>
+                <b>01</b>
+              </figure>
+              <figure class="proof-frame chip-l">
+                <i class="proof-window"></i>
+                <span class="proof-letter">L</span>
+                <span class="proof-name">徕卡</span>
+                <b>02</b>
+              </figure>
+              <figure class="proof-frame chip-r">
+                <i class="proof-window"></i>
+                <span class="proof-letter">R</span>
+                <span class="proof-name">理光</span>
+                <b>03</b>
+              </figure>
+              <figure class="proof-frame chip-f">
+                <i class="proof-window"></i>
+                <span class="proof-letter">F</span>
+                <span class="proof-name">富士</span>
+                <b>04</b>
+              </figure>
+            </div>
+            <div class="proof-foot">
               <span id="fourLookCount">0 张照片 → 0 个版本</span>
+              <button class="proof-strip-button" id="fourLookExport" type="button" disabled>
+                <span class="proof-sprockets" aria-hidden="true"><i></i><i></i><i></i></span>
+                <span data-i18n="four.export">冲印整条片卷</span> <span class="proof-arrow" aria-hidden="true">↗</span>
+              </button>
             </div>
-            <button class="button button-outline" id="fourLookExport" type="button" disabled>
-              <span data-i18n="four.export">四风格批量导出</span> <span aria-hidden="true">↗</span>
-            </button>
           </section>
 
           <section class="export-card reveal reveal-4" aria-labelledby="exportTitle">
@@ -580,7 +602,7 @@
       <div class="noscript">这个调色台需要启用 JavaScript。 / This darkroom needs JavaScript enabled.</div>
     </noscript>
 
-    <script src="i18n.js?v=20261029b" defer></script>
+    <script src="i18n.js?v=20261029c" defer></script>
     <script>
       // After first paint, quietly pull the big HEIC decoder so the first
       // iPhone photo never waits on a 1.3 MB download.
@@ -597,7 +619,7 @@
       });
     </script>
     <!-- The app shell is what makes the darkroom usable: fetch it first. -->
-    <script src="app.min.js?v=20261029b" defer fetchpriority="high"></script>
+    <script src="app.min.js?v=20261029c" defer fetchpriority="high"></script>
     <script>
       // Never leave the curtain or the look shelf dead because one request failed.
       window.setTimeout(() => {
@@ -613,7 +635,7 @@
         if (!window.__silverAppFallback) {
           window.__silverAppFallback = true;
           const fallback = document.createElement("script");
-          fallback.src = "app.js?v=20261029b";
+          fallback.src = "app.js?v=20261029c";
           fallback.defer = true;
           document.head.append(fallback);
         }

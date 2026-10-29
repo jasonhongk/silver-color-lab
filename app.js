@@ -1581,6 +1581,7 @@
   let fileSequence = 0;
   let toastSequence = 0;
   let previewFitFrame = 0;
+  let developTimer = 0;
   let lastPreviewLookId = "";
   let lastFilmstripSignature = "";
 
@@ -2786,7 +2787,7 @@
       state.selectedPresetId = replacement.presetId;
       lastFilmstripSignature = "";
       updateInterface();
-      renderPreview();
+      renderPreview({ developing: true });
       showToast(t("toast.replaced", { name: file.name }), "good");
     } catch (error) {
       console.warn("Unable to replace photo", file.name, error);
@@ -2881,7 +2882,7 @@
     }
 
     updateInterface();
-    renderPreview();
+    renderPreview({ developing: true });
     if (window.matchMedia("(max-width: 790px)").matches) setStageDepth(batch ? 1 : 0);
 
     if (skipped.length) {
@@ -3309,6 +3310,11 @@
     paintMobileLookPreviews();
     updateInterface();
     setStageDepth(1);
+    // The roll goes through the bath in one pass, matching the export card copy.
+    dom.previewWrap.classList.remove("is-rolling");
+    void dom.previewWrap.offsetWidth;
+    dom.previewWrap.classList.add("is-rolling");
+    window.setTimeout(() => dom.previewWrap.classList.remove("is-rolling"), 1000);
     if (window.matchMedia("(max-width: 790px)").matches) {
       dom.dropZone.classList.add("is-applied");
       window.setTimeout(() => dom.dropZone.classList.remove("is-applied"), 900);
@@ -3445,6 +3451,15 @@
       dom.stage.classList.remove("is-new-look");
       void dom.stage.offsetWidth;
       dom.stage.classList.add("is-new-look");
+    }
+    // A new frame arrives as a wet negative: one short developer wipe across
+    // the print. Preset changes keep their lighter tone shift, not this bath.
+    if (options.developing) {
+      dom.previewWrap.classList.remove("is-developing");
+      void dom.previewWrap.offsetWidth;
+      dom.previewWrap.classList.add("is-developing");
+      window.clearTimeout(developTimer);
+      developTimer = window.setTimeout(() => dom.previewWrap.classList.remove("is-developing"), 900);
     }
     lastPreviewLookId = preset.id;
     updateLookReadout();
@@ -3586,6 +3601,8 @@
     const shelf = dom.presetGrid;
     const rail = document.getElementById("shelfScroll");
     const thumb = document.getElementById("shelfScrollThumb");
+    const reel = document.getElementById("lookReel");
+    let windTimer = 0;
     if (!rail || !thumb) return;
     let drag = null;
     let suppressClick = false;
@@ -3622,6 +3639,13 @@
       // absolute thumb across the page and create a stray horizontal scroll.
       thumb.style.width = `${Math.min(width, track)}px`;
       thumb.style.transform = `translateX(${offset}px)`;
+      // The reel edge reads like a film edge: a punch for every frame.
+      shelf.style.setProperty("--reel-scroll", `${Math.round(shelf.scrollTop)}px`);
+      if (reel) {
+        reel.classList.add("is-winding");
+        window.clearTimeout(windTimer);
+        windTimer = window.setTimeout(() => reel.classList.remove("is-winding"), 60);
+      }
     };
     // Recalculate as soon as the browser paints the real page, not only on a
     // later resize, so the rail can never start at its provisional width.
@@ -4135,6 +4159,28 @@
     let paintX = 0;
     let paintFrame = 0;
 
+    // The four proofs print the photo that is actually in the darkroom. With
+    // no film loaded they stay as blank stock and the button explains itself.
+    const proofWrap = document.getElementById("fourProofs");
+    const proofFrames = proofWrap ? [...proofWrap.querySelectorAll(".proof-frame")] : [];
+    const proofBrands = ["hasselblad", "leica", "ricoh", "fujifilm"];
+    const signaturePresets = SIGNATURE_PRESETS.map((presetId) => PRESETS.find((entry) => entry.id === presetId));
+    const renderProofs = () => {
+      if (!proofWrap) return;
+      const item = state.items.find((entry) => entry.id === state.activeId);
+      const source = item?.thumbUrl || "";
+      proofWrap.classList.toggle("has-proof", Boolean(source));
+      proofFrames.forEach((frame, index) => {
+        const preset = signaturePresets[index] || PRESETS.find((entry) => entry.brand === proofBrands[index]);
+        const windowEl = frame.querySelector(".proof-window");
+        if (!preset || !windowEl) return;
+        const nameEl = frame.querySelector(".proof-name");
+        if (nameEl) nameEl.textContent = presetName(preset);
+        windowEl.style.setProperty("--proof-swatch", preset.swatch || "#777");
+        windowEl.style.backgroundImage = source ? `url("${source}")` : "";
+      });
+    };
+
     const flush = () => {
       paintFrame = 0;
       if (!held || !paintBox || paintBox.width <= 0) return;
@@ -4176,11 +4222,24 @@
     };
     const releaseSplitLock = () => {};
     syncSplitLock();
+    renderProofs();
     if (dom.zoomIn) dom.zoomIn.addEventListener("click", syncSplitLock);
     if (dom.zoomOut) dom.zoomOut.addEventListener("click", syncSplitLock);
     if (dom.zoomFit) dom.zoomFit.addEventListener("click", syncSplitLock);
     surface.addEventListener("wheel", syncSplitLock, { passive: true });
     surface.addEventListener("dblclick", syncSplitLock);
+    if (dom.filmstrip) {
+      dom.filmstrip.addEventListener("click", () => window.setTimeout(renderProofs, 120));
+    }
+    // Any new photo, style or replacement changes the proof; a light
+    // debounce keeps this off the drag path.
+    let proofTimer = 0;
+    if (dom.root) {
+      new MutationObserver(() => {
+        window.clearTimeout(proofTimer);
+        proofTimer = window.setTimeout(renderProofs, 90);
+      }).observe(dom.root, { subtree: true, childList: true });
+    }
     surface.addEventListener(
       "pointerdown",
       (event) => {
@@ -4318,46 +4377,12 @@
 
       dom.filmstrip.append(frame);
 
-      if (dom.stageStrip && dom.stageStrip.children.length === 0) {
-        const chip = document.createElement("button");
-        chip.type = "button";
-        chip.className = "strip-chip";
-        chip.dataset.filmId = item.id;
-        chip.setAttribute("role", "listitem");
-        chip.setAttribute("aria-label", item.name);
-        chip.classList.toggle("active", item.id === state.activeId);
-        const thumb = document.createElement("img");
-        thumb.src = item.thumbUrl;
-        thumb.alt = "";
-        thumb.draggable = false;
-        const number = document.createElement("span");
-        number.textContent = String(index + 1).padStart(2, "0");
-        chip.append(thumb, number);
-        chip.addEventListener("click", () => selectItem(item.id));
-        dom.stageStrip.append(chip);
-      }
     });
-
-    if (dom.stageStrip) {
-      const add = document.createElement("button");
-      add.type = "button";
-      add.className = "strip-add";
-      add.setAttribute("aria-label", t("film.add"));
-      add.innerHTML = `<span aria-hidden="true">+</span><small>${escapeHtml(t("mobile.addPhoto"))}</small>`;
-      add.addEventListener("click", () => {
-        dom.fileInput.value = "";
-        dom.fileInput.click();
-      });
-      dom.stageStrip.append(add);
-    }
   }
 
   function updateFilmstripSelection() {
     for (const frame of dom.filmstrip.querySelectorAll(".film-item")) {
       frame.classList.toggle("active", frame.dataset.filmId === state.activeId);
-    }
-    for (const chip of dom.stageStrip?.querySelectorAll(".strip-chip") || []) {
-      chip.classList.toggle("active", chip.dataset.filmId === state.activeId);
     }
   }
 
@@ -4448,7 +4473,10 @@
     dom.exportOne.disabled = count === 0 || state.exporting;
     dom.exportButtonCount.textContent = t("count.sheet", { count });
     dom.fourLookExport.disabled = count === 0 || state.exporting;
-    dom.fourLookCount.textContent = t("four.count", { photos: count, versions: count * 4 });
+    dom.fourLookCount.textContent =
+      count === 0
+        ? t("four.countEmpty")
+        : t("four.countAlive", { versions: count * 4 });
 
     dom.outputEstimate.textContent =
       count === 0
