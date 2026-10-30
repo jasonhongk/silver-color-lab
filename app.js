@@ -2154,12 +2154,14 @@
       // Phones start on "choose a photo" rather than a dimmed interface
       // whose one useful button is buried further down the darkroom.
       setStageDepth(0);
-    } else {
-      // The tweak panel ships open so its controls exist in the markup; a
-      // desktop darkroom keeps it closed until Advanced is asked for.
-      const tweak = document.querySelector(".stage-tweak");
-      if (tweak) tweak.open = false;
     }
+    // The tweak drawer starts closed. Its controls stay in the markup (no
+    // [open] needed for automation or assistive tech) so importing a frame
+    // never pushes the print's foot below a large sliders drawer.
+    // On phones the dock's Advanced key mirrors the same drawer: keep it in
+    // step with the closed start so it opens (and not immediately closes) it.
+    const sheetSettings = document.getElementById("mobileSheetSettings");
+    if (sheetSettings) sheetSettings.setAttribute("aria-expanded", "false");
     // Lift the first-paint curtain once the real interface is ready.
     window.setTimeout(() => {
       document.body.classList.remove("booting");
@@ -2561,11 +2563,19 @@
       event.stopPropagation();
       // "Advanced" opens the tweak drawer inside the darkroom; the export
       // options live there too, so the phone never has to hunt for them.
-      setTweakOpen(!document.querySelector(".stage-tweak")?.open);
+      const tweak = document.querySelector(".stage-tweak");
+      setTweakOpen(!(tweak?.open && tweak.classList.contains("is-visible")));
     });
     // One UI sync serves both the native <summary> toggle and the Advanced
     // button, so a tap can never open and immediately close the panel.
     document.querySelector(".stage-tweak")?.addEventListener("toggle", syncTweakUI);
+    // A style tap focuses its swatch; left inside the closed drawer, the
+    // browser then auto-expands it. Settle the drawer right after pointer use.
+    dom.presetGrid?.addEventListener("click", () => window.setTimeout(keepTweakClosed, 0));
+    dom.mobileLookRail?.addEventListener("click", () => window.setTimeout(keepTweakClosed, 0));
+    document.querySelector(".stage-tweak")?.addEventListener("toggle", (event) => {
+      document.getElementById("mobileSheetSettings")?.setAttribute("aria-expanded", String(event.target.open));
+    });
     document.getElementById("mobileSheetRoll")?.addEventListener("click", () => {
       const sheet = document.querySelector(".filmstrip-card");
       sheet?.classList.add("is-open");
@@ -2884,6 +2894,7 @@
     updateInterface();
     renderPreview({ developing: true });
     if (window.matchMedia("(max-width: 790px)").matches) setStageDepth(batch ? 1 : 0);
+    clearTweakFocus();
 
     if (skipped.length) {
       showToast(
@@ -3276,11 +3287,48 @@
     }
   }
 
+  // The look dock runs on pointer events. Browsers then hand focus to the
+  // clicked card, and a focused range control inside <details> makes Safari and
+  // Chrome auto-open the whole advanced drawer. Drop that incidental focus
+  // after a look tap: keyboard focus from a real Tab press still works.
+  function keepTweakClosed() {
+    const tweak = document.querySelector(".stage-tweak");
+    if (!tweak || tweak.classList.contains("is-visible")) return;
+    const focused = document.activeElement;
+    focused?.blur?.();
+    if (tweak.open) tweak.open = false;
+    tweak.classList.remove("is-visible");
+    document.querySelector(".drop-zone")?.classList.remove("is-tweak-open");
+  }
+
   function moveSelection(direction) {
     if (state.items.length < 2) return;
     const index = state.items.findIndex((item) => item.id === state.activeId);
     const next = (index + direction + state.items.length) % state.items.length;
     selectItem(state.items[next].id);
+  }
+
+  // The advanced drawer is a <details>; the picker returns focus to the
+  // first focusable inside it, which would make the browser auto-open it
+  // after an import. Hand focus to something harmless instead, so the print
+  // keeps its full height on both desktop and phone. Focusing controls the
+  // user did open through Advanced is left alone.
+  function clearTweakFocus() {
+    const tweak = document.querySelector(".stage-tweak");
+    if (!tweak || tweak.classList.contains("is-visible")) return;
+    const extra = document.createElement("div");
+    Object.assign(extra.style, {
+      position: "absolute",
+      left: "-9999px",
+      width: "1px",
+      height: "1px",
+      overflow: "hidden",
+    });
+    extra.tabIndex = -1;
+    document.body.append(extra);
+    extra.focus({ preventScroll: true });
+    extra.remove();
+    tweak.open = false;
   }
 
   function removeItem(id) {
@@ -3349,8 +3397,25 @@
   function setTweakOpen(opening) {
     const tweak = document.querySelector(".stage-tweak");
     if (!tweak) return;
-    const visible = tweak.open && !tweak.classList.contains("is-pending");
+    if (!opening) {
+      tweak.classList.remove("is-pending");
+      tweak.open = false;
+      syncTweakUI();
+      return;
+    }
+    // Only a toggle we started counts as open. Focusing a photo (tabbing,
+    // or the picker returning) can make the first focusable control inside
+    // the <details> auto-open it, which used to bury the print's foot.
+    const visible = tweak.classList.contains("is-visible") && !tweak.classList.contains("is-pending");
     if (opening && !visible) {
+      // Off a phone the entry motion is unnecessary; opening it natively also
+      // avoids a second "open" toggle colliding with a focus auto-open.
+      if (!window.matchMedia("(max-width: 790px)").matches) {
+        tweak.classList.remove("is-pending");
+        tweak.open = true;
+        syncTweakUI();
+        return;
+      }
       // Hide it for one instant and reveal it again so the entrance motion
       // reads even though the markup stays open.
       tweak.classList.add("is-pending");

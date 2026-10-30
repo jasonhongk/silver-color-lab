@@ -2265,8 +2265,8 @@ body:not(.booting) .app-shell {
 }
 
 .proof-name {
-  display: -webkit-box;
-  min-height: 16px;
+  display: block;
+  min-height: 8px;
   max-width: calc(100% - 13px);
   overflow: hidden;
   color: var(--ink-soft);
@@ -2274,8 +2274,8 @@ body:not(.booting) .app-shell {
   font-size: 7.5px;
   font-weight: 650;
   line-height: 1.1;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .proof-frame b {
