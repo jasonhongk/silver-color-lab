@@ -2283,6 +2283,29 @@
   }
 
   function bindEvents() {
+    // The library is a vertical reel. A two-finger trackpad swipe arrives as
+    // a wheel with both axes; the sideways part has nowhere to go, so it
+    // would otherwise never move the list at all.
+    const shelfWheel = (event) => {
+      if (event.ctrlKey) return;
+      const shelf = dom.presetGrid;
+      const delta = Math.abs(event.deltaY) >= Math.abs(event.deltaX)
+        ? event.deltaY
+        : (event.deltaX > 0 ? 1 : -1) * Math.abs(event.deltaX);
+      if (Math.abs(delta) < 1) return;
+      const max = shelf.scrollHeight - shelf.clientHeight;
+      if (max <= 2) return;
+      event.preventDefault();
+      shelf.scrollTop = clamp(shelf.scrollTop + delta, 0, max);
+      updatePresetShelfRail();
+    };
+    dom.presetGrid?.addEventListener("wheel", shelfWheel, { passive: false });
+    // The rail is beside, not inside, the list: catch its wheel in the
+    // capture pass so the gesture always winds the same reel.
+    document
+      .getElementById("shelfScroll")
+      ?.addEventListener("wheel", shelfWheel, { passive: false, capture: true });
+
     const openPicker = () => {
       dom.fileInput.value = "";
       dom.fileInput.click();
@@ -3660,8 +3683,9 @@
     applyPreviewZoom();
   }
 
-  /* The desktop shelf drags like a contact sheet: press a card and slide,
-     or drag the thin print-margin rule under it. A tap still picks the look. */
+  /* The desktop shelf is one vertical strip of film. Press a card and pull
+     up/down; the cards stay exactly under the pointer. The rule below it is
+     a second, larger handle for the same reel. A tap still picks the look. */
   function bindPresetShelfDrag() {
     const shelf = dom.presetGrid;
     const rail = document.getElementById("shelfScroll");
@@ -3674,21 +3698,10 @@
     let dragTapCard = null;
     let dragOrigin = null;
     let tapTimer = 0;
-    let mouseCapture = false;
-
-    const releaseMouseCapture = () => {
-      if (!mouseCapture) return;
-      mouseCapture = false;
-      try {
-        shelf.releasePointerCapture?.(drag?.pointerId ?? -1);
-      } catch {
-        // The pointer may already be gone.
-      }
-    };
 
     const metrics = () => {
       const trackEl = rail.querySelector(".shelf-scroll-track");
-      const track = Math.max(26, Math.round(trackEl?.getBoundingClientRect().width || rail.clientWidth - 9));
+      const track = Math.max(26, Math.round(trackEl?.getBoundingClientRect().width || rail.clientWidth));
       const ratio = shelf.scrollHeight > 0 ? shelf.clientHeight / shelf.scrollHeight : 1;
       return {
         track,
@@ -3700,8 +3713,8 @@
     const paintRail = () => {
       const { track, width, range } = metrics();
       const offset = range > 0 ? (shelf.scrollTop / range) * (track - width) : 0;
-      // Never wider than the track: a packed rule can otherwise stretch the
-      // absolute thumb across the page and create a stray horizontal scroll.
+      // A horizontal slide rule: the handle travels left/right, and its
+      // length reports how much of the strip is still below the fold.
       thumb.style.width = `${Math.min(width, track)}px`;
       thumb.style.transform = `translateX(${offset}px)`;
       // The reel edge reads like a film edge: a punch for every frame.
@@ -3713,9 +3726,39 @@
       }
     };
     // Recalculate as soon as the browser paints the real page, not only on a
-    // later resize, so the rail can never start at its provisional width.
+    // later resize, so the rail can never start at its provisional height.
     requestAnimationFrame(paintRail);
     window.addEventListener("load", paintRail, { once: true });
+
+    const sourceOf = (event) => (rail.contains(event.target) ? "rail" : "shelf");
+
+    const railGrip = (event) => {
+      const { width } = metrics();
+      const box = rail.getBoundingClientRect();
+      const onTrack = event.target.closest?.(".shelf-scroll-track");
+      const hit = onTrack ? onTrack.getBoundingClientRect() : null;
+      if (hit) return clamp(event.clientX - hit.left - width / 2, hit.width - width, 0);
+      return clamp(event.clientX - box.left - width / 2, box.width - width, 0);
+    };
+
+    // Browsers can drop a release that happens outside the window. If the
+    // next press finds the hand already left, pin the rail handle under it
+    // first: dragging back must never jump to the far end of the list.
+    const anchorRail = (event) => {
+      if (!drag) return;
+      const { width, track, range } = drag.metrics;
+      const target = (event.clientX - drag.x) * range / Math.max(1, track - width) + drag.scrollTop;
+      if (Math.abs(target - shelf.scrollTop) <= 1) return;
+      // Keep the hand on the same spot of the handle, at the position the
+      // release left it, then re-score the list's offset from there.
+      shelf.scrollTop = clamp(target, 0, range);
+      drag.scrollTop = shelf.scrollTop;
+      drag.metrics = { ...drag.metrics, width, track, range };
+      const grip = clamp(event.clientX - drag.x, 0, Math.max(0, track - width));
+      drag.x = event.clientX - grip;
+      drag.born = { x: event.clientX, y: event.clientY };
+      paintRail();
+    };
 
     const moveDrag = (event) => {
       if (!drag || event.pointerId !== drag.pointerId) return;
@@ -3723,70 +3766,54 @@
         finishDrag(event, true);
         return;
       }
-      if (drag.source === "rail") {
-        const { width, range } = drag.metrics;
-        shelf.scrollTop = drag.scrollTop + ((event.clientX - drag.x) * range) / Math.max(1, drag.metrics.track - width);
-        return;
+      if (drag.born) {
+        if (drag.born.x !== event.clientX) drag.x += drag.born.x - event.clientX;
+        drag.born = null;
       }
       const dy = event.clientY - drag.y;
-      const dx = event.clientX - drag.x;
-      if (Math.abs(dy) < 1 && Math.abs(dx) < 1) return;
+      if (drag.source === "rail") {
+        const { width, range } = drag.metrics;
+        shelf.scrollTop =
+          drag.scrollTop + ((event.clientX - drag.x) * range) / Math.max(1, drag.metrics.track - width);
+        return;
+      }
+      if (Math.abs(dy) < 1) return;
       event.preventDefault();
       // The grid never animates scrolling, so every card stays pixel-fixed
       // under the hand from the first move to the release.
       shelf.classList.add("is-dragging-now");
       shelf.classList.toggle("is-drag-up", dy < 0);
-      // A mouse holds the cards exactly under the pointer. Scrolls are whole
-      // pixels, so keep the sub-pixel remainder instead of rounding it away
-      // on every move: otherwise the sheet drifts and lags behind the hand.
-      if (event.pointerType === "mouse") {
-        drag.remainder = (drag.remainder || 0) + dy;
-        const whole = Math.trunc(drag.remainder);
-        drag.remainder -= whole;
-        drag.applied = (drag.applied || 0) + whole;
-        shelf.scrollTop = drag.scrollTop - drag.applied;
-      } else {
-        shelf.scrollTop = drag.scrollTop - dy;
-      }
+      // Whole pixels only; the sub-pixel remainder is kept so the sheet never
+      // drifts away from the pointer over a long drag.
+      drag.remainder = (drag.remainder || 0) + dy;
+      const whole = Math.trunc(drag.remainder);
+      drag.remainder -= whole;
+      drag.applied += whole;
+      shelf.scrollTop = drag.scrollTop - drag.applied;
     };
 
     const finishDrag = (event, cancelled = false) => {
       if (!drag || event.pointerId !== drag.pointerId) return;
       const fromShelf = drag.source === "shelf";
       const moved = Math.hypot(event.clientX - drag.x, event.clientY - drag.y);
-      // scrollTop is authoritative: the clamping at either end is already
-      // reflected there, so re-deriving it from the start would jump back.
-      if (!cancelled && fromShelf && Math.abs(moved) <= 5) {
-        shelf.scrollTop = drag.scrollTop;
-      }
+      // ScrollTop is authoritative: end clamping is already reflected there.
+      if (!cancelled && fromShelf && Math.abs(moved) <= 5) shelf.scrollTop = drag.scrollTop;
       if (fromShelf && moved > 5) {
         dragOrigin = dragTapCard;
         suppressClick = true;
       }
       drag = null;
       // Always drop the grab cursor: a document-level release can arrive
-      // without matching pointermove, and a stuck "grabbing" hand makes the
-      // shelf feel unresponsive.
-      shelf.classList.remove("is-grabbing");
-      shelf.classList.remove("is-dragging-now", "is-drag-up");
+      // without a matching pointermove, and a stuck hand feels dead.
+      shelf.classList.remove("is-grabbing", "is-dragging-now", "is-drag-up");
       rail.classList.remove("is-grabbing");
-      releaseMouseCapture();
       paintRail();
     };
 
-    const startDrag = (event, source) => {
+    const startDrag = (event) => {
       if (event.pointerType === "mouse" && event.button !== 0) return;
+      const source = sourceOf(event);
       if (source === "shelf" && metrics().range <= 2) return;
-      // Mouse only: while the button is held the shelf must keep receiving
-      // moves even outside its box, while its own click target stays intact.
-      if (event.pointerType === "mouse" && source === "shelf") {
-        mouseCapture = true;
-        try {
-          shelf.setPointerCapture(event.pointerId);
-        } catch {
-          // Synthetic pointers cannot be captured; plain dragging still works.
-        }
-      }
       drag = {
         pointerId: event.pointerId,
         x: event.clientX,
@@ -3799,31 +3826,35 @@
       };
       shelf.classList.add("is-grabbing");
       rail.classList.add("is-grabbing");
-      if (source === "rail") moveDrag(event);
+      if (source === "rail") {
+        // Some hosts deliver the first pointermove a few pixels after the
+        // press; remember the true press point so that gap is not a jump.
+        drag.born = { x: event.clientX, y: event.clientY };
+        anchorRail(event);
+        moveDrag(event);
+      }
     };
 
-    shelf.addEventListener("pointerdown", (event) => startDrag(event, "shelf"));
-    rail.addEventListener("pointerdown", (event) => startDrag(event, "rail"));
-    for (const source of [shelf, rail]) {
-      source.addEventListener("pointermove", moveDrag);
-    }
-    // No pointer capture here: Chromium retargets the click to the captured
-    // shelf, and some phones report a capture that then swallows card taps.
-    // Window listeners see the whole drag and the cards still get their click.
+    shelf.addEventListener("pointerdown", (event) => {
+      dragTapCard = event.target.closest?.(".preset-card") || null;
+      startDrag(event);
+    });
+    rail.addEventListener("pointerdown", startDrag);
+    for (const source of [shelf, rail]) source.addEventListener("pointermove", moveDrag);
+
+    // No pointer capture: Chromium retargets the click to the captured shelf,
+    // and some phones report a capture that then swallows card taps.
     window.addEventListener("pointerup", (event) => {
-      const wasDrag = drag?.source === "shelf";
-      // A mouse drag can still land outside the shelf; the window listener is
-      // the only place that reliably sees the release.
-      if (wasDrag && drag.scrollTop !== shelf.scrollTop) suppressClick = true;
-      if (!wasDrag) {
-        finishDrag(event);
+      const wasShelf = drag?.source === "shelf";
+      if (wasShelf && drag.scrollTop !== shelf.scrollTop) suppressClick = true;
+      finishDrag(event);
+      window.clearTimeout(tapTimer);
+      if (!wasShelf) {
         dragTapCard = null;
         return;
       }
-      finishDrag(event);
-      // If no click follows (a browser that suppresses it), the tap can still
-      // be honoured after the click window has passed.
-      window.clearTimeout(tapTimer);
+      // If no click follows (a browser that suppresses it), honour the tap
+      // after the click window has passed.
       tapTimer = window.setTimeout(() => {
         if (suppressClick && dragOrigin && shelf.contains(dragOrigin)) {
           const tapped = dragOrigin;
@@ -3842,10 +3873,8 @@
     window.addEventListener("resize", paintRail);
     window.addEventListener("blur", () => {
       drag = null;
-      shelf.classList.remove("is-grabbing");
-      shelf.classList.remove("is-dragging-now", "is-drag-up");
+      shelf.classList.remove("is-grabbing", "is-dragging-now", "is-drag-up");
       rail.classList.remove("is-grabbing");
-      releaseMouseCapture();
     });
 
     shelf.addEventListener(
@@ -3854,8 +3883,6 @@
         const card = event.target.closest?.(".preset-card");
         if (event.detail === 0) return;
         if (suppressClick && event.detail > 0) {
-          // A click after a drag is not a choice; never let a short drag land
-          // on whichever card happens to sit under the pointer.
           suppressClick = false;
           dragOrigin = null;
           dragTapCard = null;
@@ -3874,28 +3901,23 @@
       },
       true,
     );
-    shelf.addEventListener("pointerdown", (event) => {
-      dragTapCard = event.target.closest?.(".preset-card") || null;
-    });
 
     // Desktop wheel: the shelf is short on small laptops, so a plain wheel
-    // browses it without touching the page. Wheel input is applied instantly;
-    // the natural delta already carries the user's own scroll acceleration.
+    // browses it without touching the page.
     shelf.addEventListener(
       "wheel",
       (event) => {
-        if (event.ctrlKey || Math.abs(event.deltaY) < Math.abs(event.deltaX)) return;
-        if (Math.abs(event.deltaY) < 1) return;
+        if (event.ctrlKey || Math.abs(event.deltaY) < 1) return;
         event.preventDefault();
         shelf.scrollTop += event.deltaY;
         paintRail();
       },
       { passive: false },
     );
-    // The rail itself is also a scrollbar: click or drag its track to jump.
+    // The rule is also a scrollbar: click or drag its track to jump.
     rail.addEventListener("pointerdown", (event) => {
-      if (event.target !== rail && event.target !== thumb) return;
-      const box = rail.getBoundingClientRect();
+      if (!event.target.closest(".shelf-scroll-track") && event.target !== thumb) return;
+      const box = rail.querySelector(".shelf-scroll-track")?.getBoundingClientRect() || rail.getBoundingClientRect();
       const { width, range } = metrics();
       const ratio = (event.clientX - box.left - width / 2) / Math.max(1, box.width - width);
       shelf.scrollTop = Math.max(0, Math.min(range, ratio * range));
@@ -4776,9 +4798,29 @@
       },
       presetGrid: () =>
         dom.mobileLookDock?.getClientRects().length ? dom.mobileLookDock : dom.presetGrid,
-      sliders: () => [dom.strengthSlider, dom.grainSlider],
-      applyAll: () => dom.applyAll,
-      fourLook: () => dom.fourLookExport.closest(".four-look-card") || dom.fourLookExport,
+      sliders: () => {
+        if (!window.matchMedia("(max-width: 790px)").matches) {
+          return [dom.strengthSlider, dom.grainSlider];
+        }
+        // Before a photo is picked, the phone bar's later rows fade out and
+        // cannot be tapped. Point at the one live entry that is there:
+        // "Add photo"; the advanced drawer now lives with the quick actions.
+        if (!state.items.length) {
+          return [document.querySelector(".mobile-stage-utilities #mobileSheetAdd")];
+        }
+        // Expanded markup reads as measurable even while its collapsed
+        // details box has zero height; use the real box, not the slider.
+        const drawer = document.querySelector(".stage-tweak");
+        return drawer?.getClientRects().length ? [drawer] : [];
+      },
+      // On a phone these two live in the advanced drawer, whose content is
+      // hidden until that drawer opens; a hidden target would end the guide.
+      applyAll: () => (window.matchMedia("(max-width: 790px)").matches
+        ? document.getElementById("mobileApplyAll") || dom.applyAll
+        : dom.applyAll),
+      fourLook: () => (window.matchMedia("(max-width: 790px)").matches
+        ? document.getElementById("mobileExportAll")
+        : dom.fourLookExport.closest(".four-look-card") || dom.fourLookExport),
     };
     return t("guide.steps").map((step, index) => ({
       ...step,
@@ -4943,8 +4985,10 @@
   }
 
   function openGuideStep(index) {
+    closeGuideDrawer();
     guide.step = clamp(index, 0, getGuideSteps().length - 1);
     guide.active = true;
+    guide.waitFrames = 0;
     guide.root.hidden = false;
     closeWelcome();
     document.addEventListener("keydown", handleGuideKeydown);
@@ -4965,11 +5009,20 @@
   function finishGuide() {
     guide.active = false;
     if (guide.root) guide.root.hidden = true;
-    document.querySelector(".controls-panel")?.classList.remove("is-open");
+    closeGuideDrawer();
     closeWelcome();
     document.removeEventListener("keydown", handleGuideKeydown);
     markGuideSeen();
     refreshAllThumbnails();
+  }
+
+  // Leaving the tour hands the screen back: its temporary tweak drawer shuts.
+  function closeGuideDrawer() {
+    dom.dropZone?.classList.remove("is-slider-tour");
+    const tweak = document.querySelector(".stage-tweak");
+    if (!tweak?.classList.contains("is-guide-open")) return;
+    tweak.classList.remove("is-guide-open");
+    setTweakOpen(false);
   }
 
   function paintGuideCopy() {
@@ -5022,11 +5075,34 @@
     if (!guide.active || !guide.root || guide.root.hidden) return;
     const targets = guideAnchor();
     if (targets.length === 0) {
+      // Phones keep the tweak drawer closed. Open it for this step and show
+      // the sliders in place of the print; the next step closes it again.
+      const step = t("guide.steps")[guide.step];
+      if (step?.target === "sliders" && window.matchMedia("(max-width: 790px)").matches) {
+        const tweak = document.querySelector(".stage-tweak");
+        if (tweak && !tweak.classList.contains("is-guide-open")) {
+          tweak.classList.add("is-guide-open");
+          tweak.open = true;
+          dom.dropZone.classList.add("is-slider-tour");
+          window.requestAnimationFrame(placeGuide);
+          return;
+        }
+        // A drawer mid-transition can still measure empty for a frame or two.
+        guide.waitFrames = (guide.waitFrames || 0) + 1;
+        if (guide.waitFrames < 90) {
+          window.requestAnimationFrame(placeGuide);
+        }
+        return;
+      }
       finishGuide();
       return;
     }
 
     revealGuideTarget(targets);
+    placeGuideAt(targets);
+  }
+
+  function placeGuideAt(targets) {
     const rects = targets.map((target) => target.getBoundingClientRect());
     const left = Math.min(...rects.map((rect) => rect.left));
     const top = Math.min(...rects.map((rect) => rect.top));

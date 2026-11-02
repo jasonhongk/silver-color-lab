@@ -378,14 +378,16 @@ button:disabled {
   gap: 8px;
   overflow-x: hidden;
   overflow-y: auto;
+  /* A finger (or trackpad) that runs off the end of the reel should stop
+     there, not start pulling the page behind it. */
   overscroll-behavior: contain;
+  touch-action: none;
   padding: 12px 2px 8px;
   /* Never animate a hand drag: every card has to sit exactly under the
      cursor. Programmatic jumps (filters, rail) set behavior on purpose. */
   scroll-behavior: auto;
   scroll-padding-block: 10px;
   cursor: grab;
-  touch-action: pan-y;
   -webkit-user-select: none;
   user-select: none;
   scrollbar-color: rgba(28, 29, 25, 0.25) transparent;
@@ -474,18 +476,23 @@ button:disabled {
 
 /* A thin print-margin rule under the shelf: drag anywhere on it to browse. */
 .shelf-scroll {
+  position: relative;
   display: flex;
   flex: 0 0 auto;
+  flex-direction: row;
   align-items: center;
-  gap: 9px;
-  margin: 1px 2px 10px;
+  gap: 8px;
+  margin: 3px 2px 2px;
+  /* The whole strip is a handle, with a little air under the last row. */
+  padding: 6px 2px 2px;
+  border-top: 1px solid rgba(28, 29, 25, 0.16);
   color: #6f7064;
-  font-size: 9px;
+  font-size: 8px;
   font-weight: 600;
   letter-spacing: 0.1em;
   line-height: 1.4;
   cursor: grab;
-  touch-action: pan-x;
+  touch-action: none;
   user-select: none;
   -webkit-user-select: none;
 }
@@ -493,6 +500,44 @@ button:disabled {
 .preset-grid.is-grabbing,
 .shelf-scroll.is-grabbing {
   cursor: grabbing;
+}
+
+/* The two grips are one control: taking either arm is still a reel drag. */
+.look-reel:has(.preset-grid.is-grabbing) .shelf-scroll,
+.look-reel:has(.shelf-scroll.is-grabbing) .preset-grid {
+  cursor: grabbing;
+}
+
+.shelf-scroll::before,
+.shelf-scroll::after {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 0;
+  height: 0;
+  border-block: 3px solid transparent;
+  content: "";
+  opacity: 0.4;
+  pointer-events: none;
+  transform: translateY(-50%);
+  transition: opacity 160ms ease;
+}
+
+.shelf-scroll::before {
+  left: 1px;
+  border-right: 4px solid var(--ink);
+}
+
+.shelf-scroll::after {
+  right: 1px;
+  border-left: 4px solid var(--ink);
+}
+
+.shelf-scroll:hover::before,
+.shelf-scroll:hover::after,
+.shelf-scroll.is-grabbing::before,
+.shelf-scroll.is-grabbing::after {
+  opacity: 0.78;
 }
 
 .preset-grid.is-grabbing .preset-card:hover {
@@ -519,42 +564,79 @@ button:disabled {
 
 .shelf-scroll-track {
   position: relative;
-  height: 14px;
+  height: 9px;
   flex: 1;
   min-width: 0;
-  border-top: 1px solid rgba(28, 29, 25, 0.13);
-  overflow: hidden;
+  margin-inline: 8px;
+  border-block: 1px solid rgba(28, 29, 25, 0.24);
+  border-radius: 1px;
+  background:
+    repeating-linear-gradient(to right, transparent 0 11px, rgba(28, 29, 25, 0.12) 11px 12px);
+  overflow: visible;
 }
 
 .shelf-scroll-track::before,
 .shelf-scroll-track::after {
   position: absolute;
-  top: -4px;
-  width: 1px;
-  height: 7px;
-  background: rgba(28, 29, 25, 0.24);
+  top: 50%;
+  width: 3px;
+  height: 3px;
+  border: 1px solid rgba(28, 29, 25, 0.34);
+  background: transparent;
   content: "";
+  transform: translateY(-50%);
 }
 
 .shelf-scroll-track::before {
-  left: 0;
+  left: -5px;
 }
 
 .shelf-scroll-track::after {
-  right: 0;
+  right: -5px;
 }
 
 .shelf-scroll-track i {
   position: absolute;
-  top: -3px;
+  top: -1px;
   left: 0;
-  width: 34%;
-  height: 5px;
-  background: var(--ink);
+  width: 30%;
+  height: 9px;
+  margin: 0;
+  background:
+    linear-gradient(180deg, #3a3830, #1d1c17);
+  border-block: 1px solid rgba(255, 252, 242, 0.28);
   pointer-events: none;
   transition:
     width 120ms linear,
     transform 120ms linear;
+}
+
+.shelf-scroll-track i::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  background: rgba(232, 176, 131, 0.8);
+  content: "";
+  transform: translate(-50%, -50%);
+}
+
+.shelf-scroll-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.shelf-scroll-label::before {
+  width: 11px;
+  height: 7px;
+  border-block: 1px solid rgba(28, 29, 25, 0.36);
+  background:
+    linear-gradient(90deg, rgba(28, 29, 25, 0.36) 0 1px, transparent 1px),
+    linear-gradient(270deg, rgba(28, 29, 25, 0.36) 0 1px, transparent 1px);
+  content: "";
 }
 
 /* Painted from inline CSS before the theme arrives; only the generic body
@@ -3395,24 +3477,35 @@ body:not(.booting) .app-shell {
 
 .desk-fit {
   width: auto;
-  min-width: 96px;
-  gap: 7px;
-  padding: 0 12px;
+  min-width: 104px;
+  gap: 8px;
+  padding: 0 12px 0 13px;
   grid-auto-flow: column;
-  font-size: 11px;
-  font-weight: 650;
-  letter-spacing: 0.08em;
+  font-family: var(--sans);
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
 }
 
 .desk-fit output {
   color: #e8b083;
   font-family: var(--sans);
-  font-size: 10.5px;
+  font-size: 9.5px;
   font-style: normal;
-  font-weight: 700;
-  letter-spacing: 0.05em;
+  font-weight: 620;
+  letter-spacing: 0.02em;
   font-variant-numeric: tabular-nums;
-  text-shadow: 0 0 12px rgba(232, 176, 131, 0.3);
+  text-shadow: none;
+}
+
+/* The reading is a frame counter, so it sits on its own milled window
+   instead of running straight on from the word. */
+.desk-fit output {
+  min-width: 34px;
+  padding: 2px 4px;
+  border: 1px solid rgba(232, 176, 131, 0.16);
+  background: rgba(0, 0, 0, 0.24);
+  text-align: center;
 }
 
 .desk-fit.is-active {
